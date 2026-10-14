@@ -1,14 +1,16 @@
 import { defineConfig } from 'vitest/config';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
-// `npm run build` makes the normal site (dist/).
-// `npm run build:preview` makes one self-contained HTML file (dist-preview/)
-// for sharing a quick preview link, with photo hosting switched off.
+// Both builds produce one self-contained index.html (styles and code inlined), so the
+// page works on any host AND when opened straight from a downloaded folder.
+//   npm run build          → dist/          the live site, with photo hosting
+//   npm run build:preview  → dist-preview/  a shareable preview, photo hosting switched off
 export default defineConfig(({ mode }) => ({
-  plugins: mode === 'preview' ? [viteSingleFile()] : [],
+  plugins: [viteSingleFile()],
+  base: './',
   build: {
     outDir: mode === 'preview' ? 'dist-preview' : 'dist',
-    assetsInlineLimit: mode === 'preview' ? 100_000_000 : 4096,
+    assetsInlineLimit: 100_000_000,
   },
   test: {
     include: ['tests/unit/**/*.test.ts'],
