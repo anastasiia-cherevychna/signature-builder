@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# /acme, /heights, ... are all served by the one page, which reads the client from the link.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

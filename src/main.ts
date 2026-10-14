@@ -4,6 +4,7 @@ import type { ClientConfig, FieldKey } from './config/types';
 import { ALWAYS_REQUIRED, FIELDS, type TextKey } from './builder/fields';
 import { missingFromEmail, toSignatureData, type FormState } from './builder/data';
 import { createUploadField } from './builder/upload-field';
+import { saveFile } from './builder/save-file';
 import { headshotDimensionProblem, logoDimensionProblem } from './image/check';
 import { createCropper, type CropState } from './image/crop';
 import { loadImageFile, renderHeadshot, renderLogo, toJpeg, type LoadedImage } from './image/process';
@@ -318,17 +319,12 @@ function start(cfg: ClientConfig) {
     ($('install') as HTMLDetailsElement).open = true;
   });
 
-  $('downloadBtn').addEventListener('click', () => {
+  $('downloadBtn').addEventListener('click', async () => {
     if (!readyForEmail()) return;
     const d = toSignatureData(state, cfg, 'email', resolveAsset);
-    const file = new Blob([buildSignatureDocument(d)], { type: 'text/html' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(file);
-    a.download = `signature-${slug(d.name)}.html`;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    const outcome = await saveFile(`signature-${slug(d.name)}.html`, buildSignatureDocument(d));
+    if (outcome === 'declined') return say('Download cancelled.', false);
+    if (outcome === 'unavailable') return say('Downloads aren’t available here. Use Copy signature instead.', false);
     say(...emailNote('Downloaded.'));
   });
 
