@@ -184,3 +184,17 @@ button, input { font: inherit; color: inherit; }
   .preview { padding: 16px; }
   .preview-inner { min-width: 600px; }
 }
+
+/* Keep the preview, buttons and install guide on screen while the form scrolls.
+   If they're taller than the window (guide open on a small laptop), that column scrolls on its own. */
+@media (min-width: 961px) {
+  .right {
+    position: sticky;
+    top: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    gap: var(--gap-l);
+  }
+}

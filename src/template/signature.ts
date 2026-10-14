@@ -25,7 +25,12 @@ export interface SignatureData {
   linkedin?: string; // full href
   cta?: { text: string; href: string; colour: string };
   quote?: { text: string; author?: string };
+  /** Hosted https PNG icons (32 × 32, shown at 16). Missing ones fall back to text-only. */
+  icons?: Partial<Record<IconKey, string>>;
 }
+
+export type IconKey = 'email' | 'website' | 'phone' | 'linkedin';
+const ICON = 16;
 
 // Figma colours, pre-blended onto white where the design uses opacity.
 export const COLOURS = {
@@ -40,17 +45,33 @@ const FONT = 'font-family:Arial,Helvetica,sans-serif;';
 const PHOTO = 105;
 const TABLE = 'cellpadding="0" cellspacing="0" border="0" role="presentation"';
 
-function contactLine(d: SignatureData): string {
-  const items: string[] = [];
-  const link = (href: string, label: string) =>
-    `<a href="${esc(href)}" style="${FONT}color:${COLOURS.link};text-decoration:none;white-space:nowrap;">${esc(label)}</a>`;
-  if (d.website) items.push(link(d.website, displayUrl(d.website)));
-  if (d.email) items.push(link(`mailto:${d.email}`, d.email));
-  if (d.phone) items.push(link(d.phone.href, d.phone.display));
-  if (d.linkedin) items.push(link(d.linkedin, 'LinkedIn'));
-  if (!items.length) return '';
-  const sep = `<span style="color:${COLOURS.separator};">&nbsp;&nbsp;|&nbsp;&nbsp;</span>`;
-  return `<div style="${FONT}font-size:14px;line-height:20px;color:${COLOURS.meta};padding-top:8px;">${items.join(sep)}</div>`;
+const iconImg = (src: string, alt: string) =>
+  `<img src="${esc(src)}" width="${ICON}" height="${ICON}" alt="${esc(alt)}" style="display:block;width:${ICON}px;height:${ICON}px;border:0;outline:none;">`;
+
+/** Email, website, phone: one per line, each with its icon. LinkedIn: an icon link (or text if no icon). */
+function contactLines(d: SignatureData): string {
+  const icons = d.icons ?? {};
+  const rows: string[] = [];
+  const line = (key: IconKey, href: string, label: string) => {
+    const a = `<a href="${esc(href)}" style="${FONT}font-size:14px;line-height:20px;color:${COLOURS.link};text-decoration:none;white-space:nowrap;">${esc(label)}</a>`;
+    const icon = icons[key];
+    return icon
+      ? `<tr><td valign="middle" width="${ICON}" style="padding:2px 8px 2px 0;width:${ICON}px;">${iconImg(icon, key)}</td>` +
+          `<td valign="middle" style="padding:2px 0;${FONT}font-size:14px;line-height:20px;">${a}</td></tr>`
+      : `<tr><td colspan="2" style="padding:2px 0;${FONT}font-size:14px;line-height:20px;">${a}</td></tr>`;
+  };
+  if (d.email) rows.push(line('email', `mailto:${d.email}`, d.email));
+  if (d.website) rows.push(line('website', d.website, displayUrl(d.website)));
+  if (d.phone) rows.push(line('phone', d.phone.href, d.phone.display));
+  let out = rows.length ? `<table ${TABLE} style="border-collapse:collapse;margin-top:8px;">${rows.join('')}</table>` : '';
+  if (d.linkedin) {
+    const inner = icons.linkedin
+      ? `<img src="${esc(icons.linkedin)}" width="20" height="20" alt="LinkedIn" style="display:block;width:20px;height:20px;border:0;outline:none;">`
+      : `<span style="${FONT}font-size:14px;line-height:20px;color:${COLOURS.link};">LinkedIn</span>`;
+    out += `<table ${TABLE} style="border-collapse:collapse;margin-top:8px;"><tr><td style="padding:0;">` +
+      `<a href="${esc(d.linkedin)}" style="text-decoration:none;">${inner}</a></td></tr></table>`;
+  }
+  return out;
 }
 
 function ctaButton(cta: SignatureData['cta']): string {
@@ -84,7 +105,7 @@ export function buildSignatureHtml(d: SignatureData): string {
     `<td valign="top" style="padding:0;${FONT}">` +
     `<div style="${FONT}font-size:24px;line-height:35px;color:${COLOURS.name};">${name}</div>` +
     (d.title ? `<div style="${FONT}font-size:18px;line-height:26px;color:${COLOURS.title};">${esc(d.title)}</div>` : '') +
-    contactLine(d) +
+    contactLines(d) +
     ctaButton(d.cta) +
     `</td>`;
 

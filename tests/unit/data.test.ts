@@ -33,6 +33,18 @@ describe('form → signature data', () => {
     expect(toSignatureData(form(), client, 'email', local).logo).toBeUndefined();
     expect(missingFromEmail(form(), client, local)).toEqual(['client-logo']);
   });
+  it('an uploaded logo replaces the client logo, unless the logo is locked', () => {
+    const s = form({ logo: { preview: 'data:x', hosted: 'https://res.cloudinary.com/l.jpg', width: 120, height: 30 } });
+    expect(toSignatureData(s, client, 'email', live).logo?.src).toBe('https://res.cloudinary.com/l.jpg');
+    const locked = { ...client, locked: ['logo' as const] };
+    expect(toSignatureData(s, locked, 'email', live).logo?.src).toBe('https://signatures.heights.digital/clients/x/logo.png');
+  });
+  it('icons are full public links on the live site, and left out (and reported) on a local machine', () => {
+    const values = { ...blank(), name: 'J', title: 'T', email: 'j@x.com' };
+    expect(toSignatureData(form({ values }), client, 'email', live).icons?.email).toBe('https://signatures.heights.digital/icons/email.png');
+    expect(toSignatureData(form({ values }), client, 'email', local).icons).toEqual({});
+    expect(missingFromEmail(form({ values }), client, local)).toContain('icons');
+  });
   it('only adds a CTA when it has both text and a working link', () => {
     const v = { ...blank(), name: 'J', title: 'T', ctaText: 'Book a call' };
     expect(toSignatureData(form({ values: v }), client, 'email', live).cta).toBeUndefined();

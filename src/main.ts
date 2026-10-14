@@ -225,7 +225,13 @@ function start(cfg: ClientConfig) {
   const logoField = createUploadField($('logoField'), (f) => void addLogo(f), {
     remove: () => { state.logo = null; logoField.show('empty'); logoField.error(null); schedule(); },
   });
-  if (cfg.logo || locked.has('logo')) $('logoField').hidden = true;
+  if (locked.has('logo')) $('logoField').hidden = true;
+  else if (cfg.logo) {
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = `Leave empty to use the ${cfg.name} logo.`;
+    $('logoField').querySelector('.error')!.before(hint);
+  }
 
   async function addLogo(file: File) {
     logoField.error(null);
@@ -298,12 +304,13 @@ function start(cfg: ClientConfig) {
     const missing = missingFromEmail(state, cfg, resolveAsset);
     if (!missing.length) return [`${prefix} Now follow “How to install” below.`, true];
     const notes: string[] = [];
-    const yours = missing.filter((m) => m !== 'client-logo').map((m) => (m === 'photo' ? 'photo' : 'logo'));
+    const yours = missing.filter((m) => m === 'photo' || m === 'logo');
     if (yours.length) {
       const why = PREVIEW_BUILD ? 'images aren’t hosted in this preview' : !upload ? 'photo hosting isn’t set up for this link' : 'it didn’t upload. Try adding it again';
       notes.push(`Your ${yours.join(' and ')} ${yours.length > 1 ? 'were' : 'was'} left out because ${why}.`);
     }
-    if (missing.includes('client-logo')) notes.push('The company logo was left out because it isn’t on a public link yet (it will be once this tool is live).');
+    const site = missing.filter((m) => m === 'client-logo' || m === 'icons').map((m) => (m === 'icons' ? 'contact icons' : 'company logo'));
+    if (site.length) notes.push(`The ${site.join(' and ')} ${site.length > 1 ? 'were' : 'was'} left out because this page isn’t on a public link yet (they’ll be included once the tool is live).`);
     return [`${prefix} ${notes.join(' ')}`, false];
   }
 

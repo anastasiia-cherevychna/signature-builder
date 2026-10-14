@@ -44,7 +44,7 @@ test('full signature: fill in, photo, copy with hosted photo', async ({ page }) 
   const preview = page.locator('#previewInner');
   await expect(preview).toContainText('Anastasiia Cherevychna');
   await expect(preview).toContainText('Book a call');
-  await expect(preview.locator('img')).toHaveCount(2); // photo + Heights logo
+  await expect(preview.locator('img')).toHaveCount(6); // photo, Heights logo, email/website/phone icons, LinkedIn
 
   await page.click('#copyBtn');
   await expect(page.locator('#actionMsg')).toContainText('Copied');
@@ -108,7 +108,7 @@ test('locked fields are hidden, and an uploaded logo is trimmed, put on white an
   await expect(page.locator('#logoField .status')).toBeVisible();
   expect(uploads).toHaveLength(1);
   // 600×100 bar inside an 800×300 transparent canvas → trimmed and fitted to 150 wide
-  const logo = page.locator('#previewInner img');
+  const logo = page.locator('#previewInner img[alt^="Acme"]');
   await expect(logo).toHaveAttribute('width', '150');
   await expect(logo).toHaveAttribute('height', '25');
   await page.fill('#f-name', 'Jane');
@@ -121,9 +121,35 @@ test('locked fields are hidden, and an uploaded logo is trimmed, put on white an
   expect(html).toContain(HOSTED); // hosted logo
 });
 
-test('a client with a fixed logo hides the logo upload', async ({ page }) => {
+test('the Heights link shows its logo by default, and an uploaded logo replaces it', async ({ page }) => {
+  await fakeCloudinary(page);
   await page.goto('/');
-  await expect(page.locator('#logoField')).toBeHidden();
+  await expect(page.locator('#logoField')).toBeVisible();
+  await expect(page.locator('#logoField .hint')).toContainText('Leave empty to use the Heights Digital logo');
+  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /clients\/heights\/logo\.png$/);
+  await page.locator('#logoField input[type=file]').setInputFiles(fx('logo.png'));
+  await expect(page.locator('#logoField .status')).toBeVisible();
+  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /^data:image\/jpeg/);
+  await page.locator('#logoField [data-remove]').click();
+  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /clients\/heights\/logo\.png$/);
+});
+
+test('contact details show icons in the preview', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#f-email', 'jane@company.com');
+  await page.fill('#f-phone', '+351 912 345 678');
+  await page.fill('#f-linkedin', 'linkedin.com/in/jane');
+  for (const k of ['email', 'website', 'phone', 'linkedin']) await expect(page.locator(`#previewInner img[src$="icons/${k}.png"]`)).toBeVisible();
+});
+
+test('the preview stays on screen while the form scrolls', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#f-quoteAuthor').scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const box = await page.locator('#preview').boundingBox();
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.y).toBeLessThan(200);
+  await page.screenshot({ path: 'test-results/sticky.png' });
 });
 
 test('unknown client links say so', async ({ page }) => {
