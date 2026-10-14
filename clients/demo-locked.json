@@ -1,0 +1,16 @@
+{
+  "id": "demo-locked",
+  "name": "Acme (example with locked brand)",
+  "defaults": {
+    "website": "https://acme.example",
+    "ctaText": "Book a call",
+    "ctaLink": "https://acme.example/contact",
+    "ctaColour": "#1E3A8A"
+  },
+  "locked": ["logo", "website", "ctaColour"],
+  "upload": {
+    "provider": "cloudinary",
+    "cloudName": "fvkcrpgg",
+    "uploadPreset": "Signature Tool"
+  }
+}

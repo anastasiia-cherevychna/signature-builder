@@ -1,0 +1,20 @@
+{
+  "id": "heights",
+  "name": "Heights Digital",
+  "defaults": {
+    "website": "https://heights.digital",
+    "ctaColour": "#CAFC3B"
+  },
+  "logo": {
+    "src": "/clients/heights/logo.png",
+    "width": 142,
+    "height": 23,
+    "alt": "Heights Digital"
+  },
+  "locked": [],
+  "upload": {
+    "provider": "cloudinary",
+    "cloudName": "fvkcrpgg",
+    "uploadPreset": "Signature Tool"
+  }
+}
