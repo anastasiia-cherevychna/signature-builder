@@ -7,7 +7,7 @@
     "ctaLink": "https://acme.example/contact",
     "ctaColour": "#1E3A8A"
   },
-  "locked": ["logo", "website", "ctaColour"],
+  "locked": ["website", "ctaColour"],
   "upload": {
     "provider": "cloudinary",
     "cloudName": "fvkcrpgg",

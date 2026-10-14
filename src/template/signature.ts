@@ -43,7 +43,7 @@ const TABLE = 'cellpadding="0" cellspacing="0" border="0" role="presentation"';
 function contactLine(d: SignatureData): string {
   const items: string[] = [];
   const link = (href: string, label: string) =>
-    `<a href="${esc(href)}" style="${FONT}color:${COLOURS.link};text-decoration:none;">${esc(label)}</a>`;
+    `<a href="${esc(href)}" style="${FONT}color:${COLOURS.link};text-decoration:none;white-space:nowrap;">${esc(label)}</a>`;
   if (d.website) items.push(link(d.website, displayUrl(d.website)));
   if (d.email) items.push(link(`mailto:${d.email}`, d.email));
   if (d.phone) items.push(link(d.phone.href, d.phone.display));
@@ -102,7 +102,7 @@ export function buildSignatureHtml(d: SignatureData): string {
     : '';
 
   return (
-    `<table ${TABLE} style="border-collapse:collapse;max-width:600px;${FONT}">` +
+    `<table ${TABLE} width="100%" style="border-collapse:collapse;width:100%;max-width:652px;${FONT}">` +
     `<tr><td style="padding:0;">${top}</td></tr>${quote}</table>`
   );
 }

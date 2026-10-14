@@ -1,0 +1,36 @@
+/* Design tokens, from the Heights SaaS Figma file. Change a value here and it changes everywhere. */
+:root {
+  /* Colour styles */
+  --charcoal: #332d28;
+  --light-charcoal: #999693;
+  --lightest-grey: #ebeae9;
+  --light-grey: #cccac9;
+  --black: #01000c;
+  --white: #ffffff;
+  --panel: #f7f7f6;
+  --accent: #fe6c23;   /* required asterisk, logo mark */
+  --lime: #cafc3b;     /* primary CTA */
+  --switch-off: #d2d5da;
+  --error: #c4320a;
+  --ok: #2f7a3b;
+
+  /* Type */
+  --font: "Neue Haas Grotesk Text Pro", "Neue Haas Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --fs-h2: 20px;
+  --fs-h3: 16px;
+  --fs-label: 16px;
+  --fs-input: 18px;
+  --fs-small: 14px;
+  --fs-hint: 12px;
+  --lh: 1.45;
+
+  /* Space and layout */
+  --gap-xs: 4px;
+  --gap-s: 8px;
+  --gap-m: 16px;
+  --gap-l: 24px;
+  --gap-xl: 48px;
+  --page-max: 1200px;
+  --form-w: 450px;
+  --pill: 100px;
+}

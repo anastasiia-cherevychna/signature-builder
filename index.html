@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Email Signature Builder</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+<div class="page">
+  <header class="site-header">
+    <img class="site-logo" src="/src/assets/heights-logo.svg" width="326" height="54" alt="Heights">
+    <p>Custom Email<br>Signature Builder</p>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <main class="cols" id="app" hidden>
+    <!-- ============ Left: the form ============ -->
+    <section class="panel" aria-labelledby="details-h">
+      <h2 class="h2" id="details-h">Your details</h2>
+      <form id="form" novalidate autocomplete="on">
+        <div class="group" data-section="personal">
+          <h3 class="h3">Personal Details</h3>
+          <div data-fields="personal"></div>
+
+          <div class="field upload" id="headshotField" data-field="headshot">
+            <span class="label" id="hsLabel">Headshot<span class="req" aria-hidden="true">*</span></span>
+            <div class="drop" data-state="empty" aria-labelledby="hsLabel">
+              <img class="icon16" src="/src/assets/icons/upload.svg" width="16" height="16" alt="">
+              <p>Drag &amp; Drop your photo (square works best), or</p>
+              <button type="button" class="btn btn-outline btn-sm" data-browse>Browse files</button>
+            </div>
+            <div class="working" data-state="working" hidden aria-live="polite">
+              <span data-working-text>Preparing your photo…</span>
+              <div class="bar"><i></i></div>
+            </div>
+            <div class="done" data-state="done" hidden>
+              <img class="thumb" alt="Your cropped photo">
+              <div class="meta">
+                <span class="file-name"></span>
+                <span class="status">Ready to use</span>
+                <div class="actions">
+                  <button type="button" class="link" data-recrop>Adjust crop</button>
+                  <button type="button" class="link" data-browse>Replace</button>
+                  <button type="button" class="link" data-remove>Remove</button>
+                </div>
+              </div>
+            </div>
+            <div class="error" role="alert"></div>
+            <input type="file" class="sr-only" accept="image/jpeg,image/png,.jpg,.jpeg,.png" tabindex="-1" aria-hidden="true">
+          </div>
+
+          <label class="toggle">
+            <input type="checkbox" id="noHeadshot">
+            <span class="switch" aria-hidden="true"></span>
+            I want a signature without a headshot
+          </label>
+
+          <div class="field upload" id="logoField" data-field="logo">
+            <span class="label" id="logoLabel">Company logo (optional)</span>
+            <div class="drop" data-state="empty" aria-labelledby="logoLabel">
+              <img class="icon16" src="/src/assets/icons/upload.svg" width="16" height="16" alt="">
+              <p>Drag &amp; Drop the logo (JPG, on a white background), or</p>
+              <button type="button" class="btn btn-outline btn-sm" data-browse>Browse files</button>
+            </div>
+            <div class="working" data-state="working" hidden aria-live="polite">
+              <span data-working-text>Preparing your logo…</span>
+              <div class="bar"><i></i></div>
+            </div>
+            <div class="done" data-state="done" hidden>
+              <img class="thumb thumb-logo" alt="Your logo">
+              <div class="meta">
+                <span class="file-name"></span>
+                <span class="status">Ready to use</span>
+                <div class="actions">
+                  <button type="button" class="link" data-browse>Replace</button>
+                  <button type="button" class="link" data-remove>Remove</button>
+                </div>
+              </div>
+            </div>
+            <div class="error" role="alert"></div>
+            <input type="file" class="sr-only" accept="image/jpeg,image/png,.jpg,.jpeg,.png" tabindex="-1" aria-hidden="true">
+          </div>
+        </div>
+
+        <div class="group" data-section="contact">
+          <h3 class="h3">Contact &amp; Social links</h3>
+          <div data-fields="contact"></div>
+        </div>
+
+        <div class="group" data-section="extra">
+          <h3 class="h3">Extra</h3>
+          <div data-fields="extra"></div>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ Right: preview, actions, install guide ============ -->
+    <section class="right" aria-labelledby="sig-h">
+      <div class="right-main">
+        <div class="sig-head">
+          <h2 class="h2" id="sig-h">Your signature</h2>
+          <div class="seg" role="group" aria-label="Preview background">
+            <button type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+            <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+          </div>
+        </div>
+        <p class="note">Each recipient’s email app applies its own dark mode, so check your logo works on both.</p>
+        <div class="preview" id="preview" data-theme="light" aria-label="Signature preview">
+          <div class="preview-inner" id="previewInner"></div>
+        </div>
+        <div class="cta-row">
+          <button type="button" class="btn btn-lime" id="copyBtn">Copy signature</button>
+          <button type="button" class="btn btn-outline" id="downloadBtn">Download HTML</button>
+        </div>
+        <div class="msg" id="actionMsg" aria-live="polite"></div>
+      </div>
+
+      <details class="install" id="install">
+        <summary>
+          <span class="h2">How to install:</span>
+          <img src="/src/assets/icons/install.svg" width="28" height="28" alt="">
+        </summary>
+        <div class="install-body">
+          <div class="tabs" role="tablist" aria-label="Email app">
+            <button type="button" role="tab" aria-selected="true" data-tab="gmail">Gmail</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="outlook">Outlook</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="apple">Apple Mail</button>
+          </div>
+          <ol data-panel="gmail">
+            <li>Click <strong>Copy signature</strong> above.</li>
+            <li>In Gmail on a computer, click the cog (top right), then <strong>See all settings</strong>.</li>
+            <li>Scroll to <strong>Signature</strong>, click <strong>Create new</strong>, give it a name, then paste into the box (Ctrl/⌘ + V).</li>
+            <li>Under <strong>Signature defaults</strong>, choose it for new emails and for replies.</li>
+            <li>Scroll to the bottom and click <strong>Save changes</strong>.</li>
+          </ol>
+          <div data-panel="outlook" hidden>
+            <p class="sub">Outlook on the web, and the new Outlook for Windows and Mac:</p>
+            <ol>
+              <li>Click <strong>Copy signature</strong> above.</li>
+              <li>Open <strong>Settings</strong> (the cog), then <strong>Account</strong> › <strong>Signatures</strong>.</li>
+              <li>Click <strong>New signature</strong>, give it a name, and paste into the box (Ctrl/⌘ + V).</li>
+              <li>Choose it as the default for new messages and for replies, then click <strong>Save</strong>.</li>
+            </ol>
+            <p class="sub">Classic Outlook for Windows:</p>
+            <ol>
+              <li>Click <strong>Copy signature</strong> above.</li>
+              <li>Go to <strong>File</strong> › <strong>Options</strong> › <strong>Mail</strong> › <strong>Signatures</strong>, then click <strong>New</strong> and name it.</li>
+              <li>Paste into the edit box, set it as the default for new messages and replies, and click <strong>OK</strong>.</li>
+              <li>If the layout looks wrong after pasting, click <strong>Download HTML</strong>, open the file in your browser, select all (Ctrl + A), copy, and paste again.</li>
+            </ol>
+          </div>
+          <div data-panel="apple" hidden>
+            <ol>
+              <li>Click <strong>Download HTML</strong> above and open the file in Safari.</li>
+              <li>Select everything (⌘ + A) and copy it (⌘ + C).</li>
+              <li>In Mail, go to <strong>Mail</strong> › <strong>Settings</strong> › <strong>Signatures</strong>, pick your account, and click <strong>+</strong>.</li>
+              <li>Untick <strong>Always match my default message font</strong>, then click into the signature box and paste (⌘ + V).</li>
+              <li>Close Settings. If images don’t show inside Settings, send yourself a test email; they usually appear there.</li>
+            </ol>
+          </div>
+          <p class="sub">After saving, send yourself an email to check everything shows correctly.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>Heights Digital</span><span class="muted" id="year">2026</span></footer>
+</div>
+
+<dialog class="crop-dialog" id="cropDialog" aria-labelledby="crop-h">
+  <div class="crop">
+    <h2 class="h2" id="crop-h">Crop your photo</h2>
+    <p class="sub">Drag to position, and zoom so your face fills most of the square.</p>
+    <div class="stage" tabindex="0" aria-label="Crop area. Use the arrow keys to move the photo, plus and minus to zoom.">
+      <img alt="">
+      <div class="grid" aria-hidden="true"></div>
+    </div>
+    <div class="zoom">
+      <button type="button" data-zoom-out aria-label="Zoom out">−</button>
+      <input type="range" min="1" max="4" step="0.01" value="1" aria-label="Zoom">
+      <button type="button" data-zoom-in aria-label="Zoom in">+</button>
+    </div>
+    <div class="crop-foot">
+      <button type="button" class="link" data-reset>Reset</button>
+      <div class="crop-btns">
+        <button type="button" class="btn btn-outline btn-sm" data-cancel>Cancel</button>
+        <button type="button" class="btn btn-dark btn-sm" data-apply>Use photo</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<div id="sigSource" aria-hidden="true"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
