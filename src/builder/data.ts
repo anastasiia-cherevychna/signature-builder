@@ -36,13 +36,17 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
   const photo = s.noHeadshot ? '' : img(s.headshot);
   if (photo) d.photo = { src: photo, alt: v('name') };
 
-  // An uploaded logo replaces the client's default logo, unless the client has locked it.
-  const uploaded = !logoLocked(client) && s.logo ? img(s.logo) : '';
-  if (uploaded && s.logo) {
-    d.logo = { src: uploaded, width: s.logo.width!, height: s.logo.height!, alt: client.name };
-  } else if (client.logo && !(s.logo && !logoLocked(client))) {
-    const src = resolve(client.logo.src);
-    if (purpose === 'preview' || isPublic(src)) d.logo = { ...client.logo, src };
+  // The logo only appears once someone uploads one, unless the client has locked in a fixed logo.
+  if (logoLocked(client)) {
+    if (client.logo) {
+      const src = resolve(client.logo.src);
+      if (purpose === 'preview' || isPublic(src)) d.logo = { ...client.logo, src };
+    }
+  } else if (s.logo) {
+    const src = img(s.logo);
+    if (src) d.logo = { src, width: s.logo.width!, height: s.logo.height!, alt: client.name };
+  } else if (purpose === 'preview') {
+    d.logoPlaceholder = true;
   }
 
   const website = normaliseUrl(v('website'));
@@ -60,8 +64,8 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
 
   const icons: SignatureData['icons'] = {};
   for (const k of ICON_KEYS) {
-    const src = resolve(ICON_PATH(k));
-    if (purpose === 'preview' || isPublic(src)) icons[k] = src;
+    const light = resolve(ICON_PATH(k));
+    if (purpose === 'preview' || isPublic(light)) icons[k] = { light, dark: resolve(ICON_PATH(k, 'dark')) };
   }
   d.icons = icons;
   return d;
@@ -69,7 +73,7 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
 
 export const ICON_KEYS: IconKey[] = ['email', 'website', 'phone', 'linkedin'];
 /** Icons live on this site at a fixed link, so they can be redesigned without anyone re-copying. */
-export const ICON_PATH = (k: IconKey) => `/icons/${k}.png`;
+export const ICON_PATH = (k: IconKey, mode: 'light' | 'dark' = 'light') => `/icons/${k}${mode === 'dark' ? '-white' : ''}.png`;
 const isPublic = (src: string) => /^https:\/\//.test(src);
 export const logoLocked = (c: ClientConfig) => (c.locked ?? []).includes('logo');
 
@@ -78,10 +82,10 @@ export type Missing = 'photo' | 'logo' | 'client-logo' | 'icons';
 /** Images that won't make it into the email copy, so we can say so. */
 export function missingFromEmail(s: FormState, client: ClientConfig, resolve: (src: string) => string): Missing[] {
   const out: Missing[] = [];
-  const usingUpload = !logoLocked(client) && !!s.logo;
+  const locked = logoLocked(client);
   if (!s.noHeadshot && s.headshot && !s.headshot.hosted) out.push('photo');
-  if (usingUpload && !s.logo!.hosted) out.push('logo');
-  if (!usingUpload && client.logo && !isPublic(resolve(client.logo.src))) out.push('client-logo');
+  if (!locked && s.logo && !s.logo.hosted) out.push('logo');
+  if (locked && client.logo && !isPublic(resolve(client.logo.src))) out.push('client-logo');
   const d = s.values;
   const usesIcons = [d.email, d.website, d.phone, d.linkedin].some((x) => x.trim());
   if (usesIcons && !isPublic(resolve(ICON_PATH('email')))) out.push('icons');

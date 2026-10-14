@@ -5,12 +5,6 @@
     "website": "https://heights.digital",
     "ctaColour": "#CAFC3B"
   },
-  "logo": {
-    "src": "/clients/heights/logo.png",
-    "width": 158,
-    "height": 39,
-    "alt": "Heights Digital"
-  },
   "locked": [],
   "upload": {
     "provider": "cloudinary",

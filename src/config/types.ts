@@ -41,7 +41,10 @@ export interface ClientConfig {
   name: string;
   /** Values pre-filled on the form. Locked fields always use these. */
   defaults?: Partial<Record<Exclude<FieldKey, 'headshot' | 'logo'>, string>>;
-  /** Company logo set by Heights. When present the logo upload is hidden. */
+  /**
+   * Fixed company logo set by Heights. Only used when "logo" is in `locked` (the upload is then hidden).
+   * Otherwise people upload their own, and the preview shows a placeholder until they do.
+   */
   logo?: LogoConfig;
   /** Fields people can't change (hidden on the form, value comes from `defaults`). */
   locked?: FieldKey[];

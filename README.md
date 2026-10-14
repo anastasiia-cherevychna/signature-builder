@@ -13,7 +13,7 @@ A web tool that lets each client's team make a consistent email signature: fill 
 1. Copy `clients/heights.json` to `clients/<client-id>.json` (lowercase, dashes, e.g. `acme-studio`).
 2. Change `id` (must match the file name) and `name`.
 3. Choose what to pre-fill in `defaults`, what to fix in `locked`, and anything extra in `required`.
-4. Company logo, if Heights provides it: put a PNG at `public/clients/<client-id>/logo.png`, **2× the display size** (e.g. 284 × 46 for a 142 × 23 logo), on a white background. Set `logo.width` / `logo.height` to the display size.
+4. By default people upload their own logo (the preview shows a LOGO placeholder until they do). To fix one logo for the whole company instead: put a PNG at `public/clients/<client-id>/logo.png`, **2× the display size**, on a white box with an 8 px margin; set `logo.width` / `logo.height` to the display size; and add `"logo"` to `locked`.
 5. Run `npm test`. It checks every client file and explains any mistake.
 6. Commit. The client's link is `…/<client-id>`.
 
@@ -23,7 +23,7 @@ Personal fields (`name`, `title`, `headshot`) can't be locked.
 
 ### Changing a client's logo or brand colour
 
-- Logo: replace the PNG at the same path. Signatures people already use pick up the new file automatically, because they point at that link.
+- Fixed logo: replace the PNG at the same path. Signatures people already use pick up the new file automatically, because they point at that link. The same goes for the icons in `public/icons/` (`<name>.png` for light, `<name>-white.png` for dark mode).
 - Anything else (colours, text, layout): people need to re-copy their signature. Tell the client.
 
 ### Releasing a change

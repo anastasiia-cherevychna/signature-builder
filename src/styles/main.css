@@ -152,6 +152,9 @@ button, input { font: inherit; color: inherit; }
 .preview[data-theme="dark"] .preview-inner { filter: invert(1) hue-rotate(180deg); background: #e0e0e0; }
 .preview[data-theme="dark"] .preview-inner img { filter: invert(1) hue-rotate(180deg); }
 .preview-inner { width: fit-content; min-width: 100%; }
+/* Apps that support dark-mode code show the solid white icons; the preview shows that best case. */
+.preview[data-theme="dark"] .hs-ic-l { display: none !important; }
+.preview[data-theme="dark"] .hs-ic-d { display: block !important; max-height: none !important; }
 .preview .ph-photo { display: block; }
 
 .cta-row { display: flex; gap: 15px; flex-wrap: wrap; }

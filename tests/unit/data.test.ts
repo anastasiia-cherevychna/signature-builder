@@ -28,20 +28,28 @@ describe('form → signature data', () => {
     expect(toSignatureData(s, client, 'email', live).photo).toBeUndefined();
     expect(missingFromEmail(s, client, live)).toEqual([]);
   });
-  it('makes the client logo a full public link, but not on a local machine', () => {
-    expect(toSignatureData(form(), client, 'email', live).logo?.src).toBe('https://signatures.heights.digital/clients/x/logo.png');
-    expect(toSignatureData(form(), client, 'email', local).logo).toBeUndefined();
-    expect(missingFromEmail(form(), client, local)).toEqual(['client-logo']);
+  it('shows a logo placeholder in the preview until one is uploaded, and nothing in the email', () => {
+    expect(toSignatureData(form(), client, 'preview', live).logoPlaceholder).toBe(true);
+    expect(toSignatureData(form(), client, 'preview', live).logo).toBeUndefined();
+    const e = toSignatureData(form(), client, 'email', live);
+    expect(e.logo).toBeUndefined();
+    expect(e.logoPlaceholder).toBeUndefined();
+    expect(missingFromEmail(form(), client, live)).toEqual([]);
   });
-  it('an uploaded logo replaces the client logo, unless the logo is locked', () => {
+  it('uses the uploaded logo, or the fixed one when the client locks it', () => {
     const s = form({ logo: { preview: 'data:x', hosted: 'https://res.cloudinary.com/l.jpg', width: 120, height: 30 } });
     expect(toSignatureData(s, client, 'email', live).logo?.src).toBe('https://res.cloudinary.com/l.jpg');
     const locked = { ...client, locked: ['logo' as const] };
     expect(toSignatureData(s, locked, 'email', live).logo?.src).toBe('https://signatures.heights.digital/clients/x/logo.png');
+    expect(toSignatureData(form(), locked, 'email', local).logo).toBeUndefined();
+    expect(missingFromEmail(form(), locked, local)).toEqual(['client-logo']);
   });
   it('icons are full public links on the live site, and left out (and reported) on a local machine', () => {
     const values = { ...blank(), name: 'J', title: 'T', email: 'j@x.com' };
-    expect(toSignatureData(form({ values }), client, 'email', live).icons?.email).toBe('https://signatures.heights.digital/icons/email.png');
+    expect(toSignatureData(form({ values }), client, 'email', live).icons?.email).toEqual({
+      light: 'https://signatures.heights.digital/icons/email.png',
+      dark: 'https://signatures.heights.digital/icons/email-white.png',
+    });
     expect(toSignatureData(form({ values }), client, 'email', local).icons).toEqual({});
     expect(missingFromEmail(form({ values }), client, local)).toContain('icons');
   });

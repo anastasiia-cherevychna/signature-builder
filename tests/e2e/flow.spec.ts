@@ -44,7 +44,7 @@ test('full signature: fill in, photo, copy with hosted photo', async ({ page }) 
   const preview = page.locator('#previewInner');
   await expect(preview).toContainText('Anastasiia Cherevychna');
   await expect(preview).toContainText('Book a call');
-  await expect(preview.locator('img')).toHaveCount(6); // photo, Heights logo, email/website/phone icons, LinkedIn
+  await expect(preview.locator('img:visible')).toHaveCount(5); // photo + 4 contact icons (logo is a placeholder until uploaded)
 
   await page.click('#copyBtn');
   await expect(page.locator('#actionMsg')).toContainText('Copied');
@@ -131,26 +131,37 @@ test('locked fields are hidden, and an uploaded logo is trimmed, put on white an
   expect(html).toContain(HOSTED); // hosted logo
 });
 
-test('the Heights link shows its logo by default, and an uploaded logo replaces it', async ({ page }) => {
+test('the logo shows a placeholder until one is uploaded', async ({ page }) => {
   await fakeCloudinary(page);
   await page.goto('/');
   await expect(page.locator('#logoField')).toBeVisible();
-  await expect(page.locator('#logoField .hint')).toContainText('Leave empty to use the Heights Digital logo');
-  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /clients\/heights\/logo\.png$/);
+  await expect(page.locator('#previewInner [data-placeholder="logo"]')).toHaveText('LOGO');
   await page.locator('#logoField input[type=file]').setInputFiles(fx('logo.png'));
   await expect(page.locator('#logoField .status')).toBeVisible();
-  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute("src", /^data:image\/png/);
+  await expect(page.locator('#previewInner [data-placeholder="logo"]')).toHaveCount(0);
+  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /^data:image\/png/);
   await page.locator('#logoField [data-remove]').click();
-  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /clients\/heights\/logo\.png$/);
+  await expect(page.locator('#previewInner [data-placeholder="logo"]')).toBeVisible();
+});
+
+test('icons turn solid white in the dark preview', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#f-email', 'jane@company.com');
+  await expect(page.locator('#previewInner .hs-ic-l[src$="icons/email.png"]')).toBeVisible();
+  await expect(page.locator('#previewInner .hs-ic-d')).toHaveCount(2); // email + default website
+  await expect(page.locator('#previewInner .hs-ic-d').first()).toBeHidden();
+  await page.click('[data-theme-btn="dark"]');
+  await expect(page.locator('#previewInner .hs-ic-d[src$="icons/email-white.png"]')).toBeVisible();
+  await expect(page.locator('#previewInner .hs-ic-l').first()).toBeHidden();
 });
 
 test('contact icons appear as fields are filled in, and each links to the right place', async ({ page }) => {
   await page.goto('/');
-  const icon = (k: string) => page.locator(`#previewInner a:has(img[src$="icons/${k}.png"])`);
+  const icon = (k: string) => page.locator(`#previewInner a:has(img.hs-ic-l[src$="icons/${k}.png"])`);
   await page.fill('#f-website', '');
-  await expect(page.locator('#previewInner img[src*="icons/"]')).toHaveCount(0);
+  await expect(page.locator('#previewInner img.hs-ic-l')).toHaveCount(0);
   await page.fill('#f-email', 'jane@company.com');
-  await expect(page.locator('#previewInner img[src*="icons/"]')).toHaveCount(1);
+  await expect(page.locator('#previewInner img.hs-ic-l')).toHaveCount(1);
   await page.fill('#f-website', 'company.com');
   await page.fill('#f-phone', '+351 912 345 678');
   await page.fill('#f-linkedin', 'linkedin.com/in/jane');
@@ -159,7 +170,7 @@ test('contact icons appear as fields are filled in, and each links to the right 
   await expect(icon('phone')).toHaveAttribute('href', 'tel:+351912345678');
   await expect(icon('linkedin')).toHaveAttribute('href', 'https://linkedin.com/in/jane');
   // one horizontal row, 28 px icons
-  const boxes = await Promise.all(['email', 'website', 'phone', 'linkedin'].map((k) => icon(k).locator('img').boundingBox()));
+  const boxes = await Promise.all(['email', 'website', 'phone', 'linkedin'].map((k) => icon(k).locator('img.hs-ic-l').boundingBox()));
   expect(new Set(boxes.map((b) => Math.round(b!.y))).size).toBe(1);
   for (const b of boxes) expect(b!.width).toBe(28);
   await page.locator('#preview').screenshot({ path: 'test-results/icons-row.png' });

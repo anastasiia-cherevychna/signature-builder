@@ -222,12 +222,6 @@ function start(cfg: ClientConfig) {
     remove: () => { state.logo = null; logoField.show('empty'); logoField.error(null); schedule(); },
   });
   if (locked.has('logo')) $('logoField').hidden = true;
-  else if (cfg.logo) {
-    const hint = document.createElement('p');
-    hint.className = 'hint';
-    hint.textContent = `Leave empty to use the ${cfg.name} logo.`;
-    $('logoField').querySelector('.error')!.before(hint);
-  }
 
   async function addLogo(file: File) {
     logoField.error(null);
@@ -258,7 +252,8 @@ function start(cfg: ClientConfig) {
   }
   function renderPreview() {
     const d = toSignatureData(state, cfg, 'preview', resolveAsset);
-    let html = buildSignatureHtml(d);
+    // The preview's Light/Dark switch decides the look, not the viewer's own system setting.
+    let html = buildSignatureHtml(d).replace(/<style>[\s\S]*?<\/style>/, '');
     // Placeholder silhouette until a photo is added (preview only, never copied).
     if (!d.photo && !state.noHeadshot) {
       const ph = `<td valign="top" width="105" style="padding:0 20px 0 0;"><svg class="ph-photo" width="105" height="105" viewBox="0 0 105 105" aria-hidden="true"><rect width="105" height="105" fill="#E1E1E1"/><circle cx="52.5" cy="38" r="17" fill="#A3A3A3"/><ellipse cx="52.5" cy="84" rx="33" ry="19" fill="#A3A3A3"/></svg></td>`;

@@ -14,10 +14,10 @@ const full: SignatureData = {
   cta: { text: 'Book a call', href: 'https://calendly.com/x', colour: '#CAFC3B' },
   quote: { text: 'The best agency we’ve worked with.', author: 'Sarah Lee, Acme Ltd' },
   icons: {
-    email: 'https://signatures.heights.digital/icons/email.png',
-    website: 'https://signatures.heights.digital/icons/website.png',
-    phone: 'https://signatures.heights.digital/icons/phone.png',
-    linkedin: 'https://signatures.heights.digital/icons/linkedin.png',
+    email: { light: 'https://signatures.heights.digital/icons/email.png', dark: 'https://signatures.heights.digital/icons/email-white.png' },
+    website: { light: 'https://signatures.heights.digital/icons/website.png', dark: 'https://signatures.heights.digital/icons/website-white.png' },
+    phone: { light: 'https://signatures.heights.digital/icons/phone.png', dark: 'https://signatures.heights.digital/icons/phone-white.png' },
+    linkedin: { light: 'https://signatures.heights.digital/icons/linkedin.png', dark: 'https://signatures.heights.digital/icons/linkedin-white.png' },
   },
 };
 
@@ -27,12 +27,21 @@ describe('signature HTML is email-safe', () => {
   it('stays well under Gmail’s 10,000 character limit', () => {
     expect(html.length).toBeLessThan(6000);
   });
-  it('uses no style blocks, classes, SVG, data URLs, rgba or opacity', () => {
-    expect(html).not.toMatch(/<style|class=|<svg|data:|rgba\(|opacity/i);
+  it('uses no SVG, data URLs, rgba or opacity, and only the one dark-mode style block', () => {
+    expect(html).not.toMatch(/<svg|data:|rgba\(|opacity/i);
+    expect(html.match(/<style/g)).toHaveLength(1);
+    expect([...html.matchAll(/class="([^"]+)"/g)].map((m) => m[1]).every((c) => c === 'hs-ic-l' || c === 'hs-ic-d')).toBe(true);
+  });
+  it('hides the white icons unless the app is in dark mode (so Gmail, which strips the style, shows the outlined ones)', () => {
+    const dark = html.match(/<img class="hs-ic-d"[^>]+>/g)!;
+    expect(dark).toHaveLength(4);
+    for (const i of dark) expect(i).toMatch(/display:none;max-height:0;overflow:hidden;mso-hide:all;/);
+    expect(html).toContain('@media (prefers-color-scheme:dark){.hs-ic-l{display:none!important}');
+    expect(buildSignatureHtml({ name: 'J', title: 'T' })).not.toContain('<style');
   });
   it('gives every image explicit width and height', () => {
     const imgs = html.match(/<img [^>]+>/g)!;
-    expect(imgs).toHaveLength(6); // photo, logo, 4 contact icons
+    expect(imgs).toHaveLength(10); // photo, logo, 4 contact icons × light and dark
     for (const img of imgs) expect(img).toMatch(/width="\d+" height="\d+"/);
   });
   it('includes every filled-in part', () => {
@@ -41,7 +50,7 @@ describe('signature HTML is email-safe', () => {
   });
   it('shows email, website, phone and LinkedIn as a row of clickable icons', () => {
     const row = html.match(/<table[^>]*margin-top:10px;"><tr>(.*?)<\/tr><\/table>/)![1];
-    const links = [...row.matchAll(/<a href="([^"]+)"[^>]*><img src="[^"]+icons\/(\w+)\.png" width="28" height="28" alt="([^"]+)"/g)].map((m) => [m[2], m[1], m[3]]);
+    const links = [...row.matchAll(/<a href="([^"]+)"[^>]*><img class="hs-ic-l" src="[^"]+icons\/(\w+)\.png" width="28" height="28" alt="([^"]+)"/g)].map((m) => [m[2], m[1], m[3]]);
     expect(links).toEqual([
       ['email', 'mailto:name@heights.digital', 'name@heights.digital'],
       ['website', 'https://heights.digital/', 'heights.digital'],
@@ -59,6 +68,10 @@ describe('signature HTML is email-safe', () => {
     expect(h).not.toContain('icons/');
     expect(h).toContain('>name@heights.digital</span>');
     expect(h).toContain('>LinkedIn</span>');
+  });
+  it('shows a logo placeholder only when asked (preview), never by default', () => {
+    expect(buildSignatureHtml({ name: 'J', title: 'T', logoPlaceholder: true })).toContain('data-placeholder="logo"');
+    expect(buildSignatureHtml({ name: 'J', title: 'T' })).not.toContain('placeholder');
   });
   it('leaves out empty parts', () => {
     const min = buildSignatureHtml({ name: 'Jane', title: 'CTO' });

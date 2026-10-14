@@ -3,7 +3,8 @@
  *
  * This is the fragile part of the product: it has to survive Gmail, Outlook (web, new and classic desktop),
  * Apple Mail and phones. Rules it follows, and that any change must keep:
- *   - tables for layout, every style inline, no <style> blocks, no classes
+ *   - tables for layout, every style inline, no classes except the dark-mode icon swap below
+ *     (one tiny <style> block; apps that strip it, like Gmail, simply keep the outlined icons)
  *   - web-safe fonts only (Arial / Helvetica)
  *   - images are hosted https PNG/JPG with explicit width + height, never SVG or data: URLs
  *   - no opacity or rgba (colours are pre-blended onto white)
@@ -25,8 +26,14 @@ export interface SignatureData {
   linkedin?: string; // full href
   cta?: { text: string; href: string; colour: string };
   quote?: { text: string; author?: string };
-  /** Hosted https PNG icons (56 × 56, shown at 28; the white outline keeps them visible in dark mode). Without them the row falls back to text links. */
-  icons?: Partial<Record<IconKey, string>>;
+  /**
+   * Hosted https PNG icons (56 × 56, shown at 28). `light` is charcoal with a white outline, so it stays
+   * visible everywhere; `dark` is solid white and is swapped in by apps that support dark-mode code.
+   * Without icons the row falls back to text links.
+   */
+  icons?: Partial<Record<IconKey, { light: string; dark?: string }>>;
+  /** Preview only: show a grey "LOGO" box where an uploaded logo would go. Never copied. */
+  logoPlaceholder?: boolean;
 }
 
 export type IconKey = 'email' | 'website' | 'phone' | 'linkedin';
@@ -63,9 +70,13 @@ function contactRow(d: SignatureData): string {
   const cells = items.map((it, i) => {
     const pad = i < items.length - 1 ? `padding:0 ${ICON_GAP}px 0 0;` : 'padding:0;';
     const icon = icons[it.key];
+    const img = (src: string, cls: string, extra: string, alt: string) =>
+      `<img class="${cls}" src="${esc(src)}" width="${ICON}" height="${ICON}" alt="${esc(alt)}" ` +
+      `style="width:${ICON}px;height:${ICON}px;border:0;outline:none;${extra}">`;
     const inner = icon
-      ? `<img src="${esc(icon)}" width="${ICON}" height="${ICON}" alt="${esc(it.label)}" ` +
-        `style="display:block;width:${ICON}px;height:${ICON}px;border:0;outline:none;">`
+      ? img(icon.light, 'hs-ic-l', 'display:block;', it.label) +
+        // Hidden unless the email app is in dark mode and understands the <style> below.
+        (icon.dark ? img(icon.dark, 'hs-ic-d', 'display:none;max-height:0;overflow:hidden;mso-hide:all;', '') : '')
       : `<span style="${FONT}font-size:14px;line-height:20px;color:${COLOURS.link};white-space:nowrap;">${esc(it.label)}</span>`;
     return `<td valign="middle" style="${pad}"><a href="${esc(it.href)}" title="${esc(it.label)}" style="text-decoration:none;">${inner}</a></td>`;
   });
@@ -86,6 +97,11 @@ function ctaButton(cta: SignatureData['cta']): string {
   );
 }
 
+/** Swaps to the solid white icons in dark mode (Apple Mail, iPhone Mail, Outlook.com and the Outlook apps). */
+const DARK_STYLE =
+  '<style>@media (prefers-color-scheme:dark){.hs-ic-l{display:none!important}.hs-ic-d{display:block!important;max-height:none!important}}' +
+  '[data-ogsc] .hs-ic-l{display:none!important}[data-ogsc] .hs-ic-d{display:block!important;max-height:none!important}</style>';
+
 export function buildSignatureHtml(d: SignatureData): string {
   const name = esc(d.name);
   const photo = d.photo
@@ -97,7 +113,11 @@ export function buildSignatureHtml(d: SignatureData): string {
     ? `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
       `<img src="${esc(d.logo.src)}" width="${d.logo.width}" height="${d.logo.height}" alt="${esc(d.logo.alt)}" ` +
       `style="display:block;width:${d.logo.width}px;height:${d.logo.height}px;border:0;outline:none;"></td>`
-    : '';
+    : d.logoPlaceholder
+      ? `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
+        `<div data-placeholder="logo" style="width:158px;height:60px;background:#E1E1E1;color:#A3A3A3;${FONT}font-size:22px;` +
+        `font-weight:bold;line-height:60px;text-align:center;letter-spacing:1px;">LOGO</div></td>`
+      : '';
 
   const details =
     `<td valign="top" style="padding:0;${FONT}">` +
@@ -120,7 +140,9 @@ export function buildSignatureHtml(d: SignatureData): string {
       `</td></tr>`
     : '';
 
+  const usesDarkIcons = Object.values(d.icons ?? {}).some((i) => i?.dark) && /hs-ic-d/.test(top);
   return (
+    (usesDarkIcons ? DARK_STYLE : '') +
     `<table ${TABLE} width="100%" style="border-collapse:collapse;width:100%;max-width:652px;${FONT}">` +
     `<tr><td style="padding:0;">${top}</td></tr>${quote}</table>`
   );
