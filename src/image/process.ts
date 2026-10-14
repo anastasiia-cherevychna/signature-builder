@@ -64,12 +64,16 @@ export function renderHeadshot(img: HTMLImageElement, sx: number, sy: number, si
   return c;
 }
 
-/** The logo's box in the signature (from Figma): up to 150 × 60 px. */
-export const LOGO_BOX = { w: 150, h: 60 };
+/** Most room the logo gets in the signature, including its white margin (Figma's box, plus the margin). */
+export const LOGO_BOX = { w: 158, h: 60 };
+/** White margin around the logo, in display px. Keeps it readable when email apps switch to dark mode. */
+export const LOGO_PAD = 8;
+const LOGO_RADIUS = 4;
 
 /**
- * Prepares a logo: trims empty margins, puts it on white (as the design asks, so it
- * stays visible when email apps switch to dark mode), and sizes it at 2× its display size.
+ * Prepares a logo: trims empty margins, then places it on a white box that hugs it with an even
+ * 8 px margin (baked into the image, because email apps would darken a coloured table cell in
+ * dark mode), and sizes it at 2× its display size for sharp screens.
  */
 export function renderLogo(img: HTMLImageElement): { canvas: HTMLCanvasElement; width: number; height: number } {
   const src = document.createElement('canvas');
@@ -81,17 +85,23 @@ export function renderLogo(img: HTMLImageElement): { canvas: HTMLCanvasElement; 
   sctx.drawImage(img, 0, 0);
   const box = trimBox(sctx.getImageData(0, 0, src.width, src.height));
 
-  const scale = Math.min(LOGO_BOX.w / box.w, LOGO_BOX.h / box.h, 1e9);
-  const width = Math.max(1, Math.round(box.w * scale));
-  const height = Math.max(1, Math.round(box.h * scale));
+  const inner = { w: LOGO_BOX.w - 2 * LOGO_PAD, h: LOGO_BOX.h - 2 * LOGO_PAD };
+  const scale = Math.min(inner.w / box.w, inner.h / box.h);
+  const cw = Math.max(1, Math.round(box.w * scale));
+  const ch = Math.max(1, Math.round(box.h * scale));
+  const width = cw + 2 * LOGO_PAD;
+  const height = ch + 2 * LOGO_PAD;
+
   const out = document.createElement('canvas');
   out.width = width * 2;
   out.height = height * 2;
   const ctx = out.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.beginPath();
+  ctx.roundRect(0, 0, out.width, out.height, LOGO_RADIUS * 2);
+  ctx.fill();
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(src, box.x, box.y, box.w, box.h, 0, 0, out.width, out.height);
+  ctx.drawImage(src, box.x, box.y, box.w, box.h, LOGO_PAD * 2, LOGO_PAD * 2, cw * 2, ch * 2);
   return { canvas: out, width, height };
 }
 
@@ -116,3 +126,7 @@ export function trimBox(data: ImageData): { x: number; y: number; w: number; h: 
 
 export const toJpeg = (c: HTMLCanvasElement, q = 0.9) =>
   new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', q));
+
+/** PNG keeps the logo box's rounded corners transparent. */
+export const toPng = (c: HTMLCanvasElement) =>
+  new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/png'));

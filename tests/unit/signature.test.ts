@@ -41,7 +41,7 @@ describe('signature HTML is email-safe', () => {
   });
   it('shows email, website, phone and LinkedIn as a row of clickable icons', () => {
     const row = html.match(/<table[^>]*margin-top:10px;"><tr>(.*?)<\/tr><\/table>/)![1];
-    const links = [...row.matchAll(/<a href="([^"]+)"[^>]*><img src="[^"]+icons\/(\w+)\.png" width="24" height="24" alt="([^"]+)"/g)].map((m) => [m[2], m[1], m[3]]);
+    const links = [...row.matchAll(/<a href="([^"]+)"[^>]*><img src="[^"]+icons\/(\w+)\.png" width="28" height="28" alt="([^"]+)"/g)].map((m) => [m[2], m[1], m[3]]);
     expect(links).toEqual([
       ['email', 'mailto:name@heights.digital', 'name@heights.digital'],
       ['website', 'https://heights.digital/', 'heights.digital'],

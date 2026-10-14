@@ -107,10 +107,20 @@ test('locked fields are hidden, and an uploaded logo is trimmed, put on white an
   await page.locator('#logoField input[type=file]').setInputFiles(fx('logo.png'));
   await expect(page.locator('#logoField .status')).toBeVisible();
   expect(uploads).toHaveLength(1);
-  // 600×100 bar inside an 800×300 transparent canvas → trimmed and fitted to 150 wide
+  // 600×100 bar inside an 800×300 transparent canvas → trimmed, fitted to 142 wide, plus an 8 px white margin
   const logo = page.locator('#previewInner img[alt^="Acme"]');
-  await expect(logo).toHaveAttribute('width', '150');
-  await expect(logo).toHaveAttribute('height', '25');
+  await expect(logo).toHaveAttribute('width', '158');
+  await expect(logo).toHaveAttribute('height', '40');
+  const px = await logo.evaluate(async (img: HTMLImageElement) => {
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext('2d')!; x.drawImage(img, 0, 0);
+    const at = (a: number, b: number) => [...x.getImageData(a, b, 1, 1).data];
+    return { margin: at(10, 40), corner: at(0, 0), bar: at(c.width / 2, c.height / 2), size: [c.width, c.height] };
+  });
+  expect(px.size).toEqual([316, 80]);
+  expect(px.margin).toEqual([255, 255, 255, 255]); // white margin, even where the original was transparent
+  expect(px.corner[3]).toBe(0); // rounded corner
+  expect(px.bar.slice(0, 3)).toEqual([30, 58, 138]); // the logo itself
   await page.fill('#f-name', 'Jane');
   await page.fill('#f-title', 'CTO');
   await page.check('#noHeadshot', { force: true });
@@ -129,7 +139,7 @@ test('the Heights link shows its logo by default, and an uploaded logo replaces 
   await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /clients\/heights\/logo\.png$/);
   await page.locator('#logoField input[type=file]').setInputFiles(fx('logo.png'));
   await expect(page.locator('#logoField .status')).toBeVisible();
-  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /^data:image\/jpeg/);
+  await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute("src", /^data:image\/png/);
   await page.locator('#logoField [data-remove]').click();
   await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /clients\/heights\/logo\.png$/);
 });
@@ -148,10 +158,10 @@ test('contact icons appear as fields are filled in, and each links to the right 
   await expect(icon('website')).toHaveAttribute('href', 'https://company.com/');
   await expect(icon('phone')).toHaveAttribute('href', 'tel:+351912345678');
   await expect(icon('linkedin')).toHaveAttribute('href', 'https://linkedin.com/in/jane');
-  // one horizontal row, 24 px icons
+  // one horizontal row, 28 px icons
   const boxes = await Promise.all(['email', 'website', 'phone', 'linkedin'].map((k) => icon(k).locator('img').boundingBox()));
   expect(new Set(boxes.map((b) => Math.round(b!.y))).size).toBe(1);
-  for (const b of boxes) expect(b!.width).toBe(24);
+  for (const b of boxes) expect(b!.width).toBe(28);
   await page.locator('#preview').screenshot({ path: 'test-results/icons-row.png' });
 });
 
@@ -173,7 +183,10 @@ test('unknown client links say so', async ({ page }) => {
 
 test('dark preview and install tabs', async ({ page }) => {
   await page.goto('/');
+  await page.fill('#f-email', 'jane@company.com');
+  await page.fill('#f-linkedin', 'linkedin.com/in/jane');
   await page.click('[data-theme-btn="dark"]');
+  await page.locator('#preview').screenshot({ path: 'test-results/dark-icons.png' });
   await expect(page.locator('#preview')).toHaveAttribute('data-theme', 'dark');
   await page.click('#install summary');
   await page.click('[data-tab="apple"]');
@@ -201,4 +214,29 @@ test('screenshots for design review', async ({ page }) => {
   await page.screenshot({ path: 'test-results/design-match.png', clip: { x: 600, y: 170, width: 740, height: 520 } });
   await page.click('[data-theme-btn="dark"]');
   await page.screenshot({ path: 'test-results/dark.png', clip: { x: 600, y: 170, width: 740, height: 520 } });
+});
+
+test('CTA colour picker has a hex field that stays in sync', async ({ page }) => {
+  await page.goto('/');
+  await page.click('.swatch');
+  const hex = page.locator('.cp-hex');
+  await expect(hex).toBeVisible();
+  await expect(hex).toHaveValue('#CAFC3B');
+  await hex.fill('#1E3A8A');
+  await expect(page.locator('#f-ctaColour')).toHaveValue('#1E3A8A');
+  // dragging in the shade square updates both the hex field and the form
+  const sv = await page.locator('.cp-sv').boundingBox();
+  await page.mouse.click(sv!.x + sv!.width * 0.9, sv!.y + sv!.height * 0.1);
+  const picked = await hex.inputValue();
+  expect(picked).toMatch(/^#[0-9A-F]{6}$/);
+  expect(picked).not.toBe('#1E3A8A');
+  await expect(page.locator('#f-ctaColour')).toHaveValue(picked);
+  await page.locator('.cp').screenshot({ path: 'test-results/picker.png' });
+  await hex.fill('zz');
+  await hex.press('Enter');
+  await expect(page.locator('.cp')).toBeHidden();
+  await expect(page.locator('#f-ctaColour')).toHaveValue(picked);
+  // typing straight into the field still works too
+  await page.fill('#f-ctaColour', '#FE6C23');
+  await expect(page.locator('.swatch')).toHaveCSS('background-color', 'rgb(254, 108, 35)');
 });

@@ -5,9 +5,10 @@ import { ALWAYS_REQUIRED, FIELDS, type TextKey } from './builder/fields';
 import { missingFromEmail, toSignatureData, type FormState } from './builder/data';
 import { createUploadField } from './builder/upload-field';
 import { saveFile } from './builder/save-file';
+import { attachColourPicker } from './builder/colour-picker';
 import { headshotDimensionProblem, logoDimensionProblem } from './image/check';
 import { createCropper, type CropState } from './image/crop';
-import { loadImageFile, renderHeadshot, renderLogo, toJpeg, type LoadedImage } from './image/process';
+import { loadImageFile, renderHeadshot, renderLogo, toJpeg, toPng, type LoadedImage } from './image/process';
 import { UploadError, uploadImage } from './upload/cloudinary';
 import { normaliseHex } from './template/format';
 import { buildSignatureDocument, buildSignatureHtml, buildSignatureText } from './template/signature';
@@ -97,19 +98,14 @@ function start(cfg: ClientConfig) {
     input.setAttribute('aria-describedby', err.id);
 
     if (f.key === 'ctaColour') {
-      const sw = document.createElement('span');
+      const sw = document.createElement('button');
+      sw.type = 'button';
       sw.className = 'swatch';
-      const picker = document.createElement('input');
-      picker.type = 'color';
-      picker.setAttribute('aria-label', 'Pick CTA colour');
-      sw.append(picker);
+      sw.setAttribute('aria-label', 'Pick CTA colour');
+      row.classList.add('has-picker');
       row.append(sw);
-      const syncSwatch = () => {
-        const hex = normaliseHex(input.value) || '#CAFC3B';
-        sw.style.background = hex;
-        picker.value = hex.toLowerCase();
-      };
-      picker.addEventListener('input', () => { input.value = picker.value.toUpperCase(); input.dispatchEvent(new Event('input')); });
+      const syncSwatch = () => { sw.style.background = normaliseHex(input.value) || '#CAFC3B'; };
+      attachColourPicker(sw, () => input.value, (hex) => { input.value = hex; input.dispatchEvent(new Event('input')); });
       input.addEventListener('input', syncSwatch);
       syncSwatch();
     }
@@ -118,7 +114,7 @@ function start(cfg: ClientConfig) {
     if (f.key === 'ctaColour') {
       const hint = document.createElement('p');
       hint.className = 'hint';
-      hint.textContent = 'Tap the swatch to pick a colour. Button text switches to black or white automatically for contrast.';
+      hint.textContent = 'Type a hex code, or tap the swatch to pick a colour. Button text switches to black or white automatically for contrast.';
       wrap.append(hint);
     }
     if (locked.has(f.key)) wrap.hidden = true;
@@ -242,9 +238,9 @@ function start(cfg: ClientConfig) {
     busy.logo = true;
     logoField.progress('Trimming and resizing…', 40);
     const { canvas, width, height } = renderLogo(r.value.img);
-    const preview = canvas.toDataURL('image/jpeg', 0.92);
-    const blob = await toJpeg(canvas, 0.92);
-    const hosted = await host(blob, 'logo.jpg', logoField);
+    const preview = canvas.toDataURL('image/png');
+    const blob = await toPng(canvas);
+    const hosted = await host(blob, 'logo.png', logoField);
     busy.logo = false;
     if (hosted === false) { state.logo = null; logoField.show('empty'); schedule(); return; }
     state.logo = { preview, hosted: hosted || undefined, width, height };

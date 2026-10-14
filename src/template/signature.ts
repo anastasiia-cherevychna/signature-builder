@@ -25,13 +25,13 @@ export interface SignatureData {
   linkedin?: string; // full href
   cta?: { text: string; href: string; colour: string };
   quote?: { text: string; author?: string };
-  /** Hosted https PNG icons (48 × 48, shown at 24). Without them the row falls back to text links. */
+  /** Hosted https PNG icons (56 × 56, shown at 28; the white outline keeps them visible in dark mode). Without them the row falls back to text links. */
   icons?: Partial<Record<IconKey, string>>;
 }
 
 export type IconKey = 'email' | 'website' | 'phone' | 'linkedin';
-const ICON = 24;
-const ICON_GAP = 12;
+const ICON = 28;
+const ICON_GAP = 10;
 
 // Figma colours, pre-blended onto white where the design uses opacity.
 export const COLOURS = {
