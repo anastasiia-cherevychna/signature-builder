@@ -32,22 +32,33 @@ describe('signature HTML is email-safe', () => {
   });
   it('gives every image explicit width and height', () => {
     const imgs = html.match(/<img [^>]+>/g)!;
-    expect(imgs).toHaveLength(6); // photo, logo, 3 contact icons, LinkedIn
+    expect(imgs).toHaveLength(6); // photo, logo, 4 contact icons
     for (const img of imgs) expect(img).toMatch(/width="\d+" height="\d+"/);
   });
   it('includes every filled-in part', () => {
     for (const s of ['Anastasiia Cherevychna', 'Designer', 'heights.digital', 'mailto:name@heights.digital',
       'tel:+351912345678', 'LinkedIn', 'Book a call', 'bgcolor="#CAFC3B"', 'Sarah Lee']) expect(html).toContain(s);
   });
-  it('puts an icon next to email, website and phone, and makes LinkedIn an icon link', () => {
-    for (const k of ['email', 'website', 'phone']) expect(html).toContain(`icons/${k}.png" width="16" height="16"`);
-    expect(html).toMatch(/<a href="https:\/\/linkedin\.com\/in\/someone"[^>]*><img src="[^"]+linkedin\.png" width="20" height="20" alt="LinkedIn"/);
+  it('shows email, website, phone and LinkedIn as a row of clickable icons', () => {
+    const row = html.match(/<table[^>]*margin-top:10px;"><tr>(.*?)<\/tr><\/table>/)![1];
+    const links = [...row.matchAll(/<a href="([^"]+)"[^>]*><img src="[^"]+icons\/(\w+)\.png" width="24" height="24" alt="([^"]+)"/g)].map((m) => [m[2], m[1], m[3]]);
+    expect(links).toEqual([
+      ['email', 'mailto:name@heights.digital', 'name@heights.digital'],
+      ['website', 'https://heights.digital/', 'heights.digital'],
+      ['phone', 'tel:+351912345678', '+351 912 345 678'],
+      ['linkedin', 'https://linkedin.com/in/someone', 'LinkedIn'],
+    ]);
   });
-  it('falls back to text when icons aren’t available', () => {
+  it('only shows icons for filled-in fields', () => {
+    const h = buildSignatureHtml({ name: 'J', title: 'T', email: 'j@x.com', icons: full.icons });
+    expect(h).toContain('icons/email.png');
+    expect(h).not.toMatch(/icons\/(website|phone|linkedin)/);
+  });
+  it('falls back to text links when icons aren’t available', () => {
     const h = buildSignatureHtml({ ...full, icons: {} });
     expect(h).not.toContain('icons/');
+    expect(h).toContain('>name@heights.digital</span>');
     expect(h).toContain('>LinkedIn</span>');
-    expect(h).toContain('mailto:name@heights.digital');
   });
   it('leaves out empty parts', () => {
     const min = buildSignatureHtml({ name: 'Jane', title: 'CTO' });

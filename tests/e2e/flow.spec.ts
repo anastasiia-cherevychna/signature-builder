@@ -134,12 +134,25 @@ test('the Heights link shows its logo by default, and an uploaded logo replaces 
   await expect(page.locator('#previewInner img[alt="Heights Digital"]')).toHaveAttribute('src', /clients\/heights\/logo\.png$/);
 });
 
-test('contact details show icons in the preview', async ({ page }) => {
+test('contact icons appear as fields are filled in, and each links to the right place', async ({ page }) => {
   await page.goto('/');
+  const icon = (k: string) => page.locator(`#previewInner a:has(img[src$="icons/${k}.png"])`);
+  await page.fill('#f-website', '');
+  await expect(page.locator('#previewInner img[src*="icons/"]')).toHaveCount(0);
   await page.fill('#f-email', 'jane@company.com');
+  await expect(page.locator('#previewInner img[src*="icons/"]')).toHaveCount(1);
+  await page.fill('#f-website', 'company.com');
   await page.fill('#f-phone', '+351 912 345 678');
   await page.fill('#f-linkedin', 'linkedin.com/in/jane');
-  for (const k of ['email', 'website', 'phone', 'linkedin']) await expect(page.locator(`#previewInner img[src$="icons/${k}.png"]`)).toBeVisible();
+  await expect(icon('email')).toHaveAttribute('href', 'mailto:jane@company.com');
+  await expect(icon('website')).toHaveAttribute('href', 'https://company.com/');
+  await expect(icon('phone')).toHaveAttribute('href', 'tel:+351912345678');
+  await expect(icon('linkedin')).toHaveAttribute('href', 'https://linkedin.com/in/jane');
+  // one horizontal row, 24 px icons
+  const boxes = await Promise.all(['email', 'website', 'phone', 'linkedin'].map((k) => icon(k).locator('img').boundingBox()));
+  expect(new Set(boxes.map((b) => Math.round(b!.y))).size).toBe(1);
+  for (const b of boxes) expect(b!.width).toBe(24);
+  await page.locator('#preview').screenshot({ path: 'test-results/icons-row.png' });
 });
 
 test('the preview stays on screen while the form scrolls', async ({ page }) => {

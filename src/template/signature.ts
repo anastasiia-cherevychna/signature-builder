@@ -25,12 +25,13 @@ export interface SignatureData {
   linkedin?: string; // full href
   cta?: { text: string; href: string; colour: string };
   quote?: { text: string; author?: string };
-  /** Hosted https PNG icons (32 × 32, shown at 16). Missing ones fall back to text-only. */
+  /** Hosted https PNG icons (48 × 48, shown at 24). Without them the row falls back to text links. */
   icons?: Partial<Record<IconKey, string>>;
 }
 
 export type IconKey = 'email' | 'website' | 'phone' | 'linkedin';
-const ICON = 16;
+const ICON = 24;
+const ICON_GAP = 12;
 
 // Figma colours, pre-blended onto white where the design uses opacity.
 export const COLOURS = {
@@ -45,33 +46,30 @@ const FONT = 'font-family:Arial,Helvetica,sans-serif;';
 const PHOTO = 105;
 const TABLE = 'cellpadding="0" cellspacing="0" border="0" role="presentation"';
 
-const iconImg = (src: string, alt: string) =>
-  `<img src="${esc(src)}" width="${ICON}" height="${ICON}" alt="${esc(alt)}" style="display:block;width:${ICON}px;height:${ICON}px;border:0;outline:none;">`;
-
-/** Email, website, phone: one per line, each with its icon. LinkedIn: an icon link (or text if no icon). */
-function contactLines(d: SignatureData): string {
+/**
+ * Email, website, phone and LinkedIn as a row of icons. Each icon is a link (mailto:, the site,
+ * tel:, the profile), and only filled-in fields get one. If icons aren't available, the same row
+ * is shown as text links instead. Alt and title text carry the address, so it's still readable
+ * when an email app blocks images.
+ */
+function contactRow(d: SignatureData): string {
   const icons = d.icons ?? {};
-  const rows: string[] = [];
-  const line = (key: IconKey, href: string, label: string) => {
-    const a = `<a href="${esc(href)}" style="${FONT}font-size:14px;line-height:20px;color:${COLOURS.link};text-decoration:none;white-space:nowrap;">${esc(label)}</a>`;
-    const icon = icons[key];
-    return icon
-      ? `<tr><td valign="middle" width="${ICON}" style="padding:2px 8px 2px 0;width:${ICON}px;">${iconImg(icon, key)}</td>` +
-          `<td valign="middle" style="padding:2px 0;${FONT}font-size:14px;line-height:20px;">${a}</td></tr>`
-      : `<tr><td colspan="2" style="padding:2px 0;${FONT}font-size:14px;line-height:20px;">${a}</td></tr>`;
-  };
-  if (d.email) rows.push(line('email', `mailto:${d.email}`, d.email));
-  if (d.website) rows.push(line('website', d.website, displayUrl(d.website)));
-  if (d.phone) rows.push(line('phone', d.phone.href, d.phone.display));
-  let out = rows.length ? `<table ${TABLE} style="border-collapse:collapse;margin-top:8px;">${rows.join('')}</table>` : '';
-  if (d.linkedin) {
-    const inner = icons.linkedin
-      ? `<img src="${esc(icons.linkedin)}" width="20" height="20" alt="LinkedIn" style="display:block;width:20px;height:20px;border:0;outline:none;">`
-      : `<span style="${FONT}font-size:14px;line-height:20px;color:${COLOURS.link};">LinkedIn</span>`;
-    out += `<table ${TABLE} style="border-collapse:collapse;margin-top:8px;"><tr><td style="padding:0;">` +
-      `<a href="${esc(d.linkedin)}" style="text-decoration:none;">${inner}</a></td></tr></table>`;
-  }
-  return out;
+  const items: { key: IconKey; href: string; label: string }[] = [];
+  if (d.email) items.push({ key: 'email', href: `mailto:${d.email}`, label: d.email });
+  if (d.website) items.push({ key: 'website', href: d.website, label: displayUrl(d.website) });
+  if (d.phone) items.push({ key: 'phone', href: d.phone.href, label: d.phone.display });
+  if (d.linkedin) items.push({ key: 'linkedin', href: d.linkedin, label: 'LinkedIn' });
+  if (!items.length) return '';
+  const cells = items.map((it, i) => {
+    const pad = i < items.length - 1 ? `padding:0 ${ICON_GAP}px 0 0;` : 'padding:0;';
+    const icon = icons[it.key];
+    const inner = icon
+      ? `<img src="${esc(icon)}" width="${ICON}" height="${ICON}" alt="${esc(it.label)}" ` +
+        `style="display:block;width:${ICON}px;height:${ICON}px;border:0;outline:none;">`
+      : `<span style="${FONT}font-size:14px;line-height:20px;color:${COLOURS.link};white-space:nowrap;">${esc(it.label)}</span>`;
+    return `<td valign="middle" style="${pad}"><a href="${esc(it.href)}" title="${esc(it.label)}" style="text-decoration:none;">${inner}</a></td>`;
+  });
+  return `<table ${TABLE} style="border-collapse:collapse;margin-top:10px;"><tr>${cells.join('')}</tr></table>`;
 }
 
 function ctaButton(cta: SignatureData['cta']): string {
@@ -105,7 +103,7 @@ export function buildSignatureHtml(d: SignatureData): string {
     `<td valign="top" style="padding:0;${FONT}">` +
     `<div style="${FONT}font-size:24px;line-height:35px;color:${COLOURS.name};">${name}</div>` +
     (d.title ? `<div style="${FONT}font-size:18px;line-height:26px;color:${COLOURS.title};">${esc(d.title)}</div>` : '') +
-    contactLines(d) +
+    contactRow(d) +
     ctaButton(d.cta) +
     `</td>`;
 
