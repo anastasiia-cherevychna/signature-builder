@@ -1,6 +1,10 @@
 [build]
-  command = "npm run build"
+  # Unit tests run first: if any fail, the deploy fails and the current live site stays as it is.
+  command = "npm test && npm run build"
   publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
 
 # /acme, /heights, ... are all served by the one page, which reads the client from the link.
 [[redirects]]

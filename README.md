@@ -69,7 +69,7 @@ If Playwright can't find a browser, set `PW_CHROMIUM` to a Chromium executable.
 ## Hosting
 
 Any static host works. It needs:
-- build command `npm run build`, output folder `dist`
+- build command `npm test && npm run build`, output folder `dist` (so a change that breaks the unit tests never goes live)
 - every unknown path (e.g. `/acme`) served by `index.html`. `netlify.toml` and `vercel.json` already do this.
 
 ## Before launch (not done yet)
