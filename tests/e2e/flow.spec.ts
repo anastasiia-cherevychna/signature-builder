@@ -207,10 +207,13 @@ test('dark preview and install tabs', async ({ page }) => {
 });
 
 test('mobile layout has no sideways scrolling', async ({ page }) => {
+  for (const width of [390, 360]) { // iPhone; common Android width
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `sideways scroll at ${width} px`).toBeLessThanOrEqual(0);
+  }
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/mobile.png', fullPage: true });
 });
 
