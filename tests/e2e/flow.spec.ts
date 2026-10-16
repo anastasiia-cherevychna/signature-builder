@@ -125,6 +125,7 @@ test('locked fields are hidden, and an uploaded logo is trimmed, put on white an
   await page.fill('#f-title', 'CTO');
   await page.check('#noHeadshot', { force: true });
   await page.click('#copyBtn');
+  await expect(page.locator('#actionMsg')).toContainText('Copied'); // copying is async; wait before reading the clipboard
   const html = await clipboardHtml(page);
   expect(html).toContain('acme.example'); // locked website comes from the client file
   expect(html).toContain('bgcolor="#1E3A8A"'); // locked CTA colour
