@@ -1,4 +1,4 @@
-import { damaged, sizeProblem, sniffBytes, typeProblem, unreadable, type Kind, type Problem } from './check';
+import { damaged, gifSizeProblem, IMAGE_SIZE, sizeProblem, sniffBytes, typeProblem, unreadable, type Kind, type Problem } from './check';
 
 export interface LoadedImage {
   img: HTMLImageElement;
@@ -21,16 +21,16 @@ const readAsDataURL = (f: Blob) =>
   });
 
 /** Reads and checks a file. Never throws; problems come back as plain-language messages. */
-export async function loadImageFile(file: File): Promise<Result<LoadedImage>> {
+export async function loadImageFile(file: File, opts: { gif?: boolean } = {}): Promise<Result<LoadedImage>> {
   let kind: Kind;
   try {
     kind = sniffBytes(new Uint8Array(await file.slice(0, 16).arrayBuffer()));
   } catch {
     return { ok: false, problem: unreadable };
   }
-  const tp = typeProblem(kind, file.name);
+  const tp = typeProblem(kind, file.name, opts);
   if (tp) return { ok: false, problem: tp };
-  const sp = sizeProblem(file.size);
+  const sp = (kind === 'gif' && gifSizeProblem(file.size)) || sizeProblem(file.size);
   if (sp) return { ok: false, problem: sp };
 
   let url: string;
@@ -103,6 +103,26 @@ export function renderLogo(img: HTMLImageElement): { canvas: HTMLCanvasElement; 
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(src, box.x, box.y, box.w, box.h, LOGO_PAD * 2, LOGO_PAD * 2, cw * 2, ch * 2);
   return { canvas: out, width, height };
+}
+
+/**
+ * Fits a still image onto a white 128 × 128 square, drawn at 2× (256 × 256) for sharp screens. Nothing is
+ * cropped: a non-square image is centred with white either side. The white is baked in, like the logo's,
+ * because email apps would darken see-through areas in dark mode. (GIFs skip this and are used as they are.)
+ */
+export function renderSquareImage(img: HTMLImageElement): HTMLCanvasElement {
+  const px = IMAGE_SIZE * 2;
+  const c = document.createElement('canvas');
+  c.width = c.height = px;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, px, px);
+  ctx.imageSmoothingQuality = 'high';
+  const scale = Math.min(px / img.naturalWidth, px / img.naturalHeight);
+  const w = Math.round(img.naturalWidth * scale);
+  const h = Math.round(img.naturalHeight * scale);
+  ctx.drawImage(img, Math.round((px - w) / 2), Math.round((px - h) / 2), w, h);
+  return c;
 }
 
 /** Bounding box of everything that isn't (near) white. */

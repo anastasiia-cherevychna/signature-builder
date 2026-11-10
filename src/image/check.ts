@@ -47,12 +47,15 @@ const WRONG_TYPE: Record<Exclude<Kind, 'jpg' | 'png'>, Problem> = {
   unknown: { what: 'We couldn’t recognise this file as an image.', fix: 'Make sure it’s a JPG or PNG. If it came from a phone or cloud drive, download it fully first.' },
 };
 
-export function typeProblem(kind: Kind, fileName: string): Problem | null {
-  if (kind === 'jpg' || kind === 'png') return null;
+/** `gif: true` is for the 128 × 128 image upload, the only place GIFs are accepted. */
+export function typeProblem(kind: Kind, fileName: string, opts: { gif?: boolean } = {}): Problem | null {
+  if (kind === 'jpg' || kind === 'png' || (kind === 'gif' && opts.gif)) return null;
   const p = { ...WRONG_TYPE[kind] };
+  if (opts.gif && kind === 'unknown') p.fix = p.fix.replace('a JPG or PNG', 'a JPG, PNG or GIF');
   const ext = (fileName.split('.').pop() ?? '').toUpperCase();
-  if (kind !== 'empty' && /^(JPE?G|PNG)$/.test(ext)) {
-    p.what += ` It’s named “.${ext.toLowerCase()}”, but the file inside isn’t actually a ${ext === 'PNG' ? 'PNG' : 'JPG'}.`;
+  const named = opts.gif ? /^(JPE?G|PNG|GIF)$/ : /^(JPE?G|PNG)$/;
+  if (kind !== 'empty' && named.test(ext)) {
+    p.what += ` It’s named “.${ext.toLowerCase()}”, but the file inside isn’t actually a ${ext === 'PNG' ? 'PNG' : ext === 'GIF' ? 'GIF' : 'JPG'}.`;
   }
   return p;
 }
@@ -63,6 +66,31 @@ export function sizeProblem(bytes: number): Problem | null {
   return bytes > MAX_BYTES
     ? { what: `This file is ${mb(bytes)}, and the limit is 10 MB.`, fix: 'Resize it first: on Mac, Preview › Tools › Adjust Size; on Windows, Photos › Resize. Around 1000 px wide is plenty.' }
     : null;
+}
+
+/** GIFs are uploaded as they are (so they keep moving), and they load every time the email is opened. */
+export const MAX_GIF_BYTES = 1024 * 1024;
+
+export function gifSizeProblem(bytes: number): Problem | null {
+  return bytes > MAX_GIF_BYTES
+    ? { what: `This GIF is ${mb(bytes)}. For a signature it needs to be under 1 MB, or emails load slowly.`, fix: 'Shrink it to 256 × 256 px and cut frames or colours, for example in Photoshop (Save for Web) or ezgif.com.' }
+    : null;
+}
+
+export const IMAGE_SIZE = 128; // displayed size of the image option, in px
+
+/**
+ * Checks an image for the 128 × 128 option. Still images are fitted onto a square for you; a GIF is
+ * used exactly as uploaded (re-drawing it would stop it moving), so it has to be square already.
+ */
+export function imageDimensionProblem(kind: Kind, w: number, h: number): Problem | null {
+  if (Math.min(w, h) < IMAGE_SIZE)
+    return { what: `This image is only ${w}×${h} px, so it would look blurry at ${IMAGE_SIZE}×${IMAGE_SIZE}.`, fix: `Use one at least ${IMAGE_SIZE}×${IMAGE_SIZE} px, ideally 256×256.` };
+  if (kind === 'gif' && Math.abs(w - h) / Math.max(w, h) > 0.02)
+    return { what: `This GIF isn’t square (${w}×${h} px), and it would be squashed at ${IMAGE_SIZE}×${IMAGE_SIZE}.`, fix: 'Re-export it as a square, for example 256×256 px.' };
+  if (w / h > 4 || h / w > 4)
+    return { what: `This image is very ${w > h ? 'wide' : 'tall'} (${w}×${h} px), so it would be tiny once fitted into a square.`, fix: 'Use a square, or close to square, image.' };
+  return null;
 }
 
 export function headshotDimensionProblem(w: number, h: number, minSide = 200): Problem | null {

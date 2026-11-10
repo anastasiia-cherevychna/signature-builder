@@ -6,9 +6,9 @@ import { missingFromEmail, toSignatureData, type FormState } from './builder/dat
 import { createUploadField } from './builder/upload-field';
 import { saveFile } from './builder/save-file';
 import { attachColourPicker } from './builder/colour-picker';
-import { headshotDimensionProblem, logoDimensionProblem } from './image/check';
+import { headshotDimensionProblem, imageDimensionProblem, logoDimensionProblem } from './image/check';
 import { createCropper, type CropState } from './image/crop';
-import { loadImageFile, renderHeadshot, renderLogo, toJpeg, toPng, type LoadedImage } from './image/process';
+import { loadImageFile, renderHeadshot, renderLogo, renderSquareImage, toJpeg, toPng, type LoadedImage } from './image/process';
 import { UploadError, uploadImage } from './upload/cloudinary';
 import { normaliseHex } from './template/format';
 import { buildSignatureDocument, buildSignatureHtml, buildSignatureText } from './template/signature';
@@ -58,6 +58,8 @@ function start(cfg: ClientConfig) {
     noHeadshot: false,
     headshot: null,
     logo: null,
+    slot: 'logo',
+    image: null,
   };
   const touched = new Set<TextKey>();
 
@@ -158,7 +160,7 @@ function start(cfg: ClientConfig) {
   const cropper = createCropper($<HTMLDialogElement>('cropDialog'));
   let hsSource: LoadedImage | null = null;
   let hsCrop: CropState | null = null;
-  const busy = { headshot: false, logo: false };
+  const busy = { headshot: false, logo: false, image: false };
 
   const hsField = createUploadField($('headshotField'), (f) => void addHeadshot(f), {
     remove: () => { state.headshot = null; hsSource = null; hsCrop = null; hsField.show('empty'); hsField.error(null); schedule(); },
@@ -242,6 +244,55 @@ function start(cfg: ClientConfig) {
     schedule();
   }
 
+  // ---------- 128 × 128 image (the alternative to the logo)
+  const imageField = createUploadField($('imageField'), (f) => void addImage(f), {
+    remove: () => { state.image = null; imageField.show('empty'); imageField.error(null); schedule(); },
+  });
+
+  async function addImage(file: File) {
+    imageField.error(null);
+    const r = await loadImageFile(file, { gif: true });
+    if (!r.ok) return imageField.error(r.problem);
+    const dim = imageDimensionProblem(r.value.kind, r.value.w, r.value.h);
+    if (dim) return imageField.error(dim);
+    busy.image = true;
+    let blob: Blob;
+    let preview: string;
+    let name: string;
+    if (r.value.kind === 'gif') {
+      // Used exactly as uploaded: drawing it onto a canvas would keep only the first frame.
+      imageField.progress('Checking your GIF…', 40);
+      blob = file;
+      preview = r.value.url;
+      name = 'image.gif';
+    } else {
+      imageField.progress('Fitting to 128 × 128…', 40);
+      const canvas = renderSquareImage(r.value.img);
+      preview = canvas.toDataURL('image/png');
+      blob = await toPng(canvas);
+      name = 'image.png';
+    }
+    const hosted = await host(blob, name, imageField);
+    busy.image = false;
+    if (hosted === false) { state.image = null; imageField.show('empty'); schedule(); return; }
+    state.image = { preview, hosted: hosted || undefined, width: 128, height: 128 };
+    imageField.done(preview, r.value.name);
+    schedule();
+  }
+
+  // Logo or image: one box at a time, and only the chosen one goes into the signature.
+  const slotBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-slot-btn]')];
+  function chooseSlot(slot: FormState['slot']) {
+    state.slot = slot;
+    slotBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.slotBtn === slot)));
+    $('logoField').hidden = slot !== 'logo';
+    $('imageField').hidden = slot !== 'image';
+    schedule();
+  }
+  slotBtns.forEach((b) => b.addEventListener('click', () => chooseSlot(b.dataset.slotBtn as FormState['slot'])));
+  // A client's fixed logo replaces the whole choice.
+  if (locked.has('logo')) { $('slotField').hidden = true; $('imageField').hidden = true; }
+
   // ---------- preview
   const previewInner = $('previewInner');
   let raf = 0;
@@ -278,7 +329,7 @@ function start(cfg: ClientConfig) {
     for (const k of FIELDS.map((f) => f.key)) touched.add(k);
     const bad = FIELDS.filter((f) => !locked.has(f.key) && !validateField(f.key));
     const missingPhoto = !state.noHeadshot && !state.headshot && required.has('headshot');
-    if (busy.headshot || busy.logo) { say('Wait a moment, your image is still uploading.', false); return false; }
+    if (busy.headshot || busy.logo || busy.image) { say('Wait a moment, your image is still uploading.', false); return false; }
     if (missingPhoto) hsField.error({ what: 'Add a photo, or turn on “I want a signature without a headshot”.', fix: 'JPG or PNG, square works best.' });
     if (bad.length || missingPhoto) {
       const names = [...bad.map((f) => f.label.toLowerCase()), ...(missingPhoto ? ['headshot'] : [])];
@@ -295,7 +346,7 @@ function start(cfg: ClientConfig) {
     const missing = missingFromEmail(state, cfg, resolveAsset);
     if (!missing.length) return [`${prefix} Now follow “How to install” below.`, true];
     const notes: string[] = [];
-    const yours = missing.filter((m) => m === 'photo' || m === 'logo');
+    const yours = missing.filter((m) => m === 'photo' || m === 'logo' || m === 'image');
     if (yours.length) {
       const why = PREVIEW_BUILD ? 'images aren’t hosted in this preview' : !upload ? 'photo hosting isn’t set up for this link' : 'it didn’t upload. Try adding it again';
       notes.push(`Your ${yours.join(' and ')} ${yours.length > 1 ? 'were' : 'was'} left out because ${why}.`);

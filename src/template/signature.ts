@@ -20,6 +20,8 @@ export interface SignatureData {
   /** Square headshot. `src` must be a hosted https URL when copying (a data: URL is fine for preview). */
   photo?: { src: string; alt?: string };
   logo?: { src: string; width: number; height: number; alt: string };
+  /** The 128 × 128 alternative to the logo. Same place on the right; `src` is a hosted https PNG, JPG or GIF. */
+  image?: { src: string; alt: string };
   website?: string; // full href
   email?: string;
   phone?: { display: string; href: string };
@@ -34,6 +36,8 @@ export interface SignatureData {
   icons?: Partial<Record<IconKey, { light: string; dark?: string }>>;
   /** Preview only: show a grey "LOGO" box where an uploaded logo would go. Never copied. */
   logoPlaceholder?: boolean;
+  /** Preview only: the same, a grey "IMAGE" box, while the image option is chosen but empty. Never copied. */
+  imagePlaceholder?: boolean;
 }
 
 export type IconKey = 'email' | 'website' | 'phone' | 'linkedin';
@@ -51,6 +55,7 @@ export const COLOURS = {
 
 const FONT = 'font-family:Arial,Helvetica,sans-serif;';
 const PHOTO = 105;
+export const IMAGE = 128;
 const TABLE = 'cellpadding="0" cellspacing="0" border="0" role="presentation"';
 
 /**
@@ -113,11 +118,20 @@ export function buildSignatureHtml(d: SignatureData): string {
     ? `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
       `<img src="${esc(d.logo.src)}" width="${d.logo.width}" height="${d.logo.height}" alt="${esc(d.logo.alt)}" ` +
       `style="display:block;width:${d.logo.width}px;height:${d.logo.height}px;border:0;outline:none;"></td>`
-    : d.logoPlaceholder
-      ? `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
-        `<div data-placeholder="logo" style="width:158px;height:60px;background:#E1E1E1;color:#A3A3A3;${FONT}font-size:22px;` +
-        `font-weight:bold;line-height:60px;text-align:center;letter-spacing:1px;">LOGO</div></td>`
-      : '';
+    : d.image
+      ? // Same cell as the logo, so it sits and behaves exactly like it.
+        `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
+        `<img src="${esc(d.image.src)}" width="${IMAGE}" height="${IMAGE}" alt="${esc(d.image.alt)}" ` +
+        `style="display:block;width:${IMAGE}px;height:${IMAGE}px;border:0;outline:none;"></td>`
+      : d.logoPlaceholder
+        ? `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
+          `<div data-placeholder="logo" style="width:158px;height:60px;background:#E1E1E1;color:#A3A3A3;${FONT}font-size:22px;` +
+          `font-weight:bold;line-height:60px;text-align:center;letter-spacing:1px;">LOGO</div></td>`
+        : d.imagePlaceholder
+          ? `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
+            `<div data-placeholder="image" style="width:${IMAGE}px;height:${IMAGE}px;background:#E1E1E1;color:#A3A3A3;${FONT}font-size:22px;` +
+            `font-weight:bold;line-height:${IMAGE}px;text-align:center;letter-spacing:1px;">IMAGE</div></td>`
+          : '';
 
   const details =
     `<td valign="top" style="padding:0;${FONT}">` +

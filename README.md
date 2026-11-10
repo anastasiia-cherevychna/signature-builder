@@ -13,7 +13,7 @@ A web tool that lets each client's team make a consistent email signature: fill 
 1. Copy `clients/heights.json` to `clients/<client-id>.json` (lowercase, dashes, e.g. `acme-studio`).
 2. Change `id` (must match the file name) and `name`.
 3. Choose what to pre-fill in `defaults`, what to fix in `locked`, and anything extra in `required`.
-4. By default people upload their own logo (the preview shows a LOGO placeholder until they do). To fix one logo for the whole company instead: put a PNG at `public/clients/<client-id>/logo.png`, **2× the display size**, on a white box with an 8 px margin; set `logo.width` / `logo.height` to the display size; and add `"logo"` to `locked`.
+4. By default people upload their own logo (the preview shows a LOGO placeholder until they do). To fix one logo for the whole company instead: put a PNG at `public/clients/<client-id>/logo.png`, **2× the display size**, on a white box with an 8 px margin; set `logo.width` / `logo.height` to the display size; and add `"logo"` to `locked`. (Without a fixed logo, the form also offers an **Image** choice: a 128 × 128 image, JPG, PNG or GIF, shown in the same place. A fixed logo hides that choice.)
 5. Run `npm test`. It checks every client file and explains any mistake.
 6. Commit. The client's link is `…/<client-id>`.
 

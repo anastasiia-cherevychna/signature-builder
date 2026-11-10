@@ -32,11 +32,14 @@ export async function uploadImage(blob: Blob, cfg: UploadConfig, fileName: strin
     /* non-JSON error page */
   }
   if (res.ok && data.secure_url) return data.secure_url;
-  throw new UploadError(explain(data.error?.message ?? `HTTP ${res.status}`));
+  throw new UploadError(explain(data.error?.message ?? `HTTP ${res.status}`, fileName));
 }
 
-export function explain(m: string): Problem {
+export function explain(m: string, fileName = ''): Problem {
   const setup = 'This is a setup issue, not your image. Please let the Heights team know.';
+  // GIFs are only accepted for the 128 × 128 image, and the hosting preset may not allow them yet.
+  if (/\.gif$/i.test(fileName) && /format|type/i.test(m))
+    return { what: 'The photo service rejected this GIF.', fix: `${setup} Its upload settings may not allow GIFs yet.` };
   if (/preset/i.test(m)) return { what: `The photo service rejected the upload settings (${m}).`, fix: setup };
   if (/cloud_name|cloud name|HTTP 401|HTTP 404/i.test(m)) return { what: `The photo service account wasn’t recognised (${m}).`, fix: setup };
   if (/size|large/i.test(m)) return { what: 'The photo service rejected this image as too large.', fix: 'Try a smaller image.' };

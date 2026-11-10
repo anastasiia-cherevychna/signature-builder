@@ -9,7 +9,7 @@ const live = (src: string) => new URL(src, 'https://signatures.heights.digital/'
 const local = (src: string) => new URL(src, 'http://localhost:5173/').href;
 
 function form(over: Partial<FormState> = {}): FormState {
-  return { values: { ...blank(), name: 'Jane', title: 'CTO' }, noHeadshot: false, headshot: null, logo: null, ...over };
+  return { values: { ...blank(), name: 'Jane', title: 'CTO' }, noHeadshot: false, headshot: null, logo: null, slot: 'logo', image: null, ...over };
 }
 
 describe('form → signature data', () => {
@@ -62,5 +62,47 @@ describe('form → signature data', () => {
   it('ignores links that aren’t LinkedIn in the LinkedIn field', () => {
     const d = toSignatureData(form({ values: { ...blank(), name: 'J', title: 'T', linkedin: 'twitter.com/j' } }), client, 'email', live);
     expect(d.linkedin).toBeUndefined();
+  });
+});
+
+describe('the 128 × 128 image option (an alternative to the logo)', () => {
+  const logo = { preview: 'data:logo', hosted: 'https://res.cloudinary.com/l.png', width: 120, height: 30 };
+  const image = { preview: 'data:image/gif;base64,xx', hosted: 'https://res.cloudinary.com/i.gif', width: 128, height: 128 };
+
+  it('uses the image, and not the logo, when "image" is chosen', () => {
+    const s = form({ slot: 'image', logo, image });
+    const e = toSignatureData(s, client, 'email', live);
+    expect(e.image).toEqual({ src: 'https://res.cloudinary.com/i.gif', alt: 'X Ltd' });
+    expect(e.logo).toBeUndefined();
+    expect(toSignatureData(s, client, 'preview', live).image?.src).toBe('data:image/gif;base64,xx');
+  });
+  it('uses the logo, and not the image, when "logo" is chosen, and keeps both uploads when switching', () => {
+    const s = form({ slot: 'logo', logo, image });
+    const e = toSignatureData(s, client, 'email', live);
+    expect(e.logo?.src).toBe(logo.hosted);
+    expect(e.image).toBeUndefined();
+    expect(toSignatureData({ ...s, slot: 'image' }, client, 'email', live).image?.src).toBe(image.hosted);
+  });
+  it('shows an IMAGE placeholder in the preview until one is uploaded, and nothing in the email', () => {
+    const s = form({ slot: 'image', logo });
+    expect(toSignatureData(s, client, 'preview', live).imagePlaceholder).toBe(true);
+    expect(toSignatureData(s, client, 'preview', live).logoPlaceholder).toBeUndefined();
+    const e = toSignatureData(s, client, 'email', live);
+    expect(e.image).toBeUndefined();
+    expect(e.imagePlaceholder).toBeUndefined();
+    expect(e.logo).toBeUndefined(); // the logo isn't used while the image option is chosen
+    expect(missingFromEmail(s, client, live)).toEqual([]);
+  });
+  it('leaves an un-hosted image out of the email and says so (but ignores an un-hosted logo that isn’t in use)', () => {
+    const s = form({ slot: 'image', logo: { preview: 'data:logo' }, image: { preview: 'data:image' } });
+    expect(toSignatureData(s, client, 'email', live).image).toBeUndefined();
+    expect(missingFromEmail(s, client, live)).toEqual(['image']);
+  });
+  it('a client’s locked logo always wins, whatever was chosen', () => {
+    const locked = { ...client, locked: ['logo' as const] };
+    const e = toSignatureData(form({ slot: 'image', image }), locked, 'email', live);
+    expect(e.logo?.src).toBe('https://signatures.heights.digital/clients/x/logo.png');
+    expect(e.image).toBeUndefined();
+    expect(missingFromEmail(form({ slot: 'image', image: { preview: 'data:x' } }), locked, live)).toEqual([]);
   });
 });

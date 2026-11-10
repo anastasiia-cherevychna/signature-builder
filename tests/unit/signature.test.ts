@@ -94,6 +94,29 @@ describe('signature HTML is email-safe', () => {
   });
 });
 
+describe('the 128 × 128 image', () => {
+  const { logo: _logo, ...noLogo } = full;
+  const withImage = buildSignatureHtml({ ...noLogo, image: { src: 'https://res.cloudinary.com/x/image/upload/v1/i.gif', alt: 'Heights Digital' } });
+  const logoCell = buildSignatureHtml(full).match(/<td valign="top" align="right" style="padding:0 0 0 24px;">/)![0];
+
+  it('sits in the same right-hand cell as the logo, at exactly 128 × 128', () => {
+    expect(withImage).toContain(`${logoCell}<img src="https://res.cloudinary.com/x/image/upload/v1/i.gif" width="128" height="128"`);
+    expect(withImage).toContain('style="display:block;width:128px;height:128px;border:0;outline:none;"');
+    expect(withImage.indexOf('align="right"')).toBeGreaterThan(withImage.indexOf('Anastasiia Cherevychna')); // right of the details
+  });
+  it('stays email-safe: no SVG, data URLs, extra classes or styles, and under Gmail’s limit', () => {
+    expect(withImage).not.toMatch(/<svg|data:|rgba\(|opacity/i);
+    expect(withImage.match(/<style/g)).toHaveLength(1); // still just the dark-mode icon block
+    expect(withImage.length).toBeLessThan(6000);
+  });
+  it('shows a grey IMAGE placeholder in the preview, with the same footprint, only when asked', () => {
+    const ph = buildSignatureHtml({ name: 'J', title: 'T', imagePlaceholder: true });
+    expect(ph).toContain('data-placeholder="image"');
+    expect(ph).toContain('width:128px;height:128px');
+    expect(buildSignatureHtml({ name: 'J', title: 'T' })).not.toContain('data-placeholder');
+  });
+});
+
 describe('text and file versions', () => {
   it('plain text has the essentials', () => {
     expect(buildSignatureText(full)).toBe(

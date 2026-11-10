@@ -58,6 +58,15 @@
             I want a signature without a headshot
           </label>
 
+          <!-- Right-hand side of the signature: the company logo OR a 128 × 128 image. Hidden when a client locks its logo. -->
+          <div class="field" id="slotField">
+            <span class="label" id="slotLabel">Add a company logo or an image</span>
+            <div class="seg seg-slot" role="group" aria-labelledby="slotLabel">
+              <button type="button" data-slot-btn="logo" aria-pressed="true">Company logo</button>
+              <button type="button" data-slot-btn="image" aria-pressed="false">Image</button>
+            </div>
+          </div>
+
           <div class="field upload" id="logoField" data-field="logo">
             <span class="label" id="logoLabel">Company logo (optional)</span>
             <div class="drop" data-state="empty" aria-labelledby="logoLabel">
@@ -82,6 +91,33 @@
             </div>
             <div class="error" role="alert"></div>
             <input type="file" class="sr-only" accept="image/jpeg,image/png,.jpg,.jpeg,.png" tabindex="-1" aria-hidden="true">
+          </div>
+
+          <div class="field upload" id="imageField" data-field="image" hidden>
+            <span class="label" id="imageLabel">Image (optional)</span>
+            <div class="drop" data-state="empty" aria-labelledby="imageLabel">
+              <img class="icon16" src="/src/assets/icons/upload.svg" width="16" height="16" alt="">
+              <p>Drag &amp; Drop a square image (JPG, PNG or GIF), or</p>
+              <button type="button" class="btn btn-outline btn-sm" data-browse>Browse files</button>
+            </div>
+            <div class="working" data-state="working" hidden aria-live="polite">
+              <span data-working-text>Preparing your image…</span>
+              <div class="bar"><i></i></div>
+            </div>
+            <div class="done" data-state="done" hidden>
+              <img class="thumb thumb-square" alt="Your image">
+              <div class="meta">
+                <span class="file-name"></span>
+                <span class="status">Ready to use</span>
+                <div class="actions">
+                  <button type="button" class="link" data-browse>Replace</button>
+                  <button type="button" class="link" data-remove>Remove</button>
+                </div>
+              </div>
+            </div>
+            <div class="error" role="alert"></div>
+            <p class="hint">Shown at 128 × 128 px, on the right like the logo. Give it its own background so it looks right in dark mode. A GIF can be animated, but must be square and under 1 MB.</p>
+            <input type="file" class="sr-only" accept="image/jpeg,image/png,image/gif,.jpg,.jpeg,.png,.gif" tabindex="-1" aria-hidden="true">
           </div>
         </div>
 
