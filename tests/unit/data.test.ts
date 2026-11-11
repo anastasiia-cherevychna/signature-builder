@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { missingFromEmail, toSignatureData, type FormState } from '../../src/builder/data';
 import { FIELDS, type TextKey } from '../../src/builder/fields';
+import { buildSignatureHtml } from '../../src/template/signature';
 import { isEmail } from '../../src/template/format';
 import type { ClientConfig } from '../../src/config/types';
 
@@ -10,7 +11,7 @@ const live = (src: string) => new URL(src, 'https://signatures.heights.digital/'
 const local = (src: string) => new URL(src, 'http://localhost:5173/').href;
 
 function form(over: Partial<FormState> = {}): FormState {
-  return { values: { ...blank(), name: 'Jane', title: 'CTO' }, noHeadshot: false, headshot: null, logo: null, ...over };
+  return { values: { ...blank(), name: 'Jane', title: 'CTO' }, noHeadshot: false, emailAsIcon: true, headshot: null, logo: null, ...over };
 }
 
 describe('form → signature data', () => {
@@ -66,37 +67,44 @@ describe('form → signature data', () => {
   });
 });
 
-describe('the Email address field (shown under the job title)', () => {
-  const field = FIELDS.find((f) => f.key === 'emailAddress')!;
-  const withEmail = (v: string) => toSignatureData(form({ values: { ...blank(), name: 'J', title: 'T', emailAddress: v } }), client, 'email', live);
+describe('the one Email field, with its "Email address as icon" switch', () => {
+  const field = FIELDS.find((f) => f.key === 'email')!;
+  const make = (v: string, emailAsIcon: boolean) =>
+    toSignatureData(form({ emailAsIcon, values: { ...blank(), name: 'J', title: 'T', email: v } }), client, 'email', live);
 
-  it('sits directly below the job title, in Personal Details, and is optional', () => {
-    const personal = FIELDS.filter((f) => f.section === 'personal').map((f) => f.key);
-    expect(personal).toEqual(['name', 'title', 'emailAddress']);
-    expect(FIELDS.map((f) => f.key).indexOf('emailAddress')).toBe(FIELDS.map((f) => f.key).indexOf('title') + 1);
-    expect(withEmail('').emailLine).toBeUndefined(); // empty is fine
+  it('is a single optional field, in Contact & Social links', () => {
+    expect(field.section).toBe('contact');
+    expect(FIELDS.filter((f) => /email/i.test(f.key))).toHaveLength(1);
+    expect(make('', true).email).toBeUndefined();
+    expect(make('', false).emailLine).toBeUndefined();
   });
-  it('accepts a normal email address, and trims spaces around it', () => {
+  it('switch on (the default): the address becomes the envelope icon, not a line of text', () => {
+    const d = make('jane@company.com', true);
+    expect([d.email, d.emailLine]).toEqual(['jane@company.com', undefined]);
+  });
+  it('switch off: the address is written under the job title, not an icon', () => {
+    const d = make('  jane@company.com ', false);
+    expect([d.email, d.emailLine]).toEqual([undefined, 'jane@company.com']);
+    const html = buildSignatureHtml(d);
+    expect(html).not.toContain('icons/email'); // no envelope when it's written out
+    expect(html).toContain('>jane@company.com</a>');
+    expect(missingFromEmail(form({ emailAsIcon: false, values: { ...blank(), name: 'J', title: 'T', email: 'j@x.com' } }), client, local)).not.toContain('icons');
+  });
+  it('accepts a normal address', () => {
     expect(field.check!('jane@company.com', blank())).toBeNull();
     expect(field.check!('jane.smith+news@sub.company.co.uk', blank())).toBeNull();
-    expect(withEmail('  jane@company.com ').emailLine).toBe('jane@company.com');
   });
-  it('turns away anything without an @, saying so', () => {
+  it('turns away anything without an @, saying so, whichever way the switch is', () => {
     for (const bad of ['jane', 'jane.company.com', 'company.com', 'Jane Smith']) {
       expect(field.check!(bad, blank())).toMatch(/needs an @/);
-      expect(withEmail(bad).emailLine).toBeUndefined();
+      for (const on of [true, false]) { const d = make(bad, on); expect([d.email, d.emailLine]).toEqual([undefined, undefined]); }
     }
   });
   it('turns away an address that has an @ but isn’t complete', () => {
     for (const bad of ['jane@', '@company.com', 'jane@company', 'jane@company.', 'jane@@company.com', 'jane @company.com', 'jane@com pany.com', 'jane@company.c']) {
       expect(field.check!(bad, blank()), bad).toMatch(/looks incomplete/);
       expect(isEmail(bad), bad).toBe(false);
-      expect(withEmail(bad).emailLine, bad).toBeUndefined();
+      for (const on of [true, false]) { const d = make(bad, on); expect([d.email, d.emailLine], bad).toEqual([undefined, undefined]); }
     }
-  });
-  it('is separate from the Email field in Contact, which still gives the envelope icon', () => {
-    const d = toSignatureData(form({ values: { ...blank(), name: 'J', title: 'T', email: 'icon@x.com', emailAddress: 'line@x.com' } }), client, 'email', live);
-    expect([d.email, d.emailLine]).toEqual(['icon@x.com', 'line@x.com']);
-    expect(withEmail('line@x.com').email).toBeUndefined();
   });
 });

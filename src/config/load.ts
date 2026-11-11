@@ -6,7 +6,7 @@ const files = import.meta.glob<ClientConfig>('../../clients/*.json', { eager: tr
 export const DEFAULT_CLIENT = 'heights';
 
 const ALL_FIELDS: FieldKey[] = [
-  'name', 'title', 'emailAddress', 'headshot', 'logo', 'website', 'email', 'phone', 'linkedin',
+  'name', 'title', 'headshot', 'logo', 'website', 'email', 'phone', 'linkedin',
   'ctaText', 'ctaLink', 'ctaColour', 'quoteText', 'quoteAuthor',
 ];
 

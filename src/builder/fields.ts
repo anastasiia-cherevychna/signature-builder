@@ -24,13 +24,11 @@ const link = (v: string) => (normaliseUrl(v) ? null : 'This doesn’t look like 
 export const FIELDS: FieldDef[] = [
   { key: 'name', section: 'personal', label: 'Name', placeholder: 'e.g. Jane Smith', autocomplete: 'name' },
   { key: 'title', section: 'personal', label: 'Job title', placeholder: 'e.g. CTO', autocomplete: 'organization-title' },
-  // Shown as a line of text under the job title (the "email" field further down is the envelope icon).
-  { key: 'emailAddress', section: 'personal', label: 'Email address', placeholder: 'name@company.com', type: 'email', autocomplete: 'email',
-    check: (v) => (!v.includes('@') ? 'An email address needs an @, like name@company.com.' : isEmail(v) ? null : 'This email address looks incomplete. It should be like name@company.com.') },
   // headshot + logo uploads sit here (see index.html)
   { key: 'website', section: 'contact', label: 'Website', placeholder: 'https://company.com', type: 'url', check: link },
+  // Shown as an envelope icon or, with the "Email address as icon" switch off, as a line under the job title.
   { key: 'email', section: 'contact', label: 'Email', placeholder: 'name@company.com', type: 'email', autocomplete: 'email',
-    check: (v) => (isEmail(v) ? null : 'This email address looks incomplete. It should be like name@company.com.') },
+    check: (v) => (!v.includes('@') ? 'An email address needs an @, like name@company.com.' : isEmail(v) ? null : 'This email address looks incomplete. It should be like name@company.com.') },
   { key: 'phone', section: 'contact', label: 'Phone', placeholder: '+351 912 345 678', type: 'tel', autocomplete: 'tel',
     check: (v) => (telHref(v) ? null : 'This phone number is too short. Include the area or country code.') },
   { key: 'linkedin', section: 'contact', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/…', type: 'url',

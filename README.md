@@ -18,7 +18,7 @@ A web tool that lets each client's team make a consistent email signature: fill 
 6. Commit. The client's link is `…/<client-id>`.
 
 Field names you can use in `defaults`, `locked` and `required`:
-`name, title, emailAddress, headshot, logo, website, email, phone, linkedin, ctaText, ctaLink, ctaColour, quoteText, quoteAuthor`.
+`name, title, headshot, logo, website, email, phone, linkedin, ctaText, ctaLink, ctaColour, quoteText, quoteAuthor`.
 Personal fields (`name`, `title`, `headshot`) can't be locked.
 
 ### Changing a client's logo or brand colour

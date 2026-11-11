@@ -56,6 +56,7 @@ function start(cfg: ClientConfig) {
   const state: FormState = {
     values: Object.fromEntries(FIELDS.map((f) => [f.key, cfg.defaults?.[f.key] ?? ''])) as Record<TextKey, string>,
     noHeadshot: false,
+    emailAsIcon: true, // as before: an envelope icon
     headshot: null,
     logo: null,
   };
@@ -116,6 +117,16 @@ function start(cfg: ClientConfig) {
       hint.className = 'hint';
       hint.textContent = 'Type a hex code, or tap the swatch to pick a colour. Button text switches to black or white automatically for contrast.';
       wrap.append(hint);
+    }
+    if (f.key === 'email') {
+      // Icon, or written under the job title: a switch right below the email field.
+      const t = document.createElement('label');
+      t.className = 'toggle toggle-below';
+      t.innerHTML = '<input type="checkbox" id="emailAsIcon" checked><span class="switch" aria-hidden="true"></span>Email address as icon';
+      const cb = t.querySelector('input')!;
+      cb.checked = state.emailAsIcon;
+      cb.addEventListener('change', () => { state.emailAsIcon = cb.checked; schedule(); });
+      wrap.append(t);
     }
     if (locked.has(f.key)) wrap.hidden = true;
     host.append(wrap);
