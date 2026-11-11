@@ -22,6 +22,8 @@ export interface SignatureData {
   logo?: { src: string; width: number; height: number; alt: string };
   website?: string; // full href
   email?: string;
+  /** The address shown as a line of text under the job title, in the same style as the job title. */
+  emailLine?: string;
   phone?: { display: string; href: string };
   linkedin?: string; // full href
   cta?: { text: string; href: string; colour: string };
@@ -123,6 +125,11 @@ export function buildSignatureHtml(d: SignatureData): string {
     `<td valign="top" style="padding:0;${FONT}">` +
     `<div style="${FONT}font-size:24px;line-height:35px;color:${COLOURS.name};">${name}</div>` +
     (d.title ? `<div style="${FONT}font-size:18px;line-height:26px;color:${COLOURS.title};">${esc(d.title)}</div>` : '') +
+    // Same style as the job title. It's a link so email apps don't turn it blue and underlined on their own.
+    (d.emailLine
+      ? `<div style="${FONT}font-size:18px;line-height:26px;color:${COLOURS.title};">` +
+        `<a href="mailto:${esc(d.emailLine)}" style="${FONT}font-size:18px;line-height:26px;color:${COLOURS.title};text-decoration:none;">${esc(d.emailLine)}</a></div>`
+      : '') +
     contactRow(d) +
     ctaButton(d.cta) +
     `</td>`;
@@ -151,6 +158,7 @@ export function buildSignatureHtml(d: SignatureData): string {
 /** Plain-text fallback for apps that don't take HTML. */
 export function buildSignatureText(d: SignatureData): string {
   const lines = [d.name, d.title];
+  if (d.emailLine) lines.push(d.emailLine);
   const contact = [d.website && displayUrl(d.website), d.email, d.phone?.display, d.linkedin].filter(Boolean);
   if (contact.length) lines.push(contact.join(' | '));
   if (d.cta) lines.push(`${d.cta.text}: ${d.cta.href}`);

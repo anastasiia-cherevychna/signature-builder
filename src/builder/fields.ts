@@ -24,6 +24,9 @@ const link = (v: string) => (normaliseUrl(v) ? null : 'This doesn’t look like 
 export const FIELDS: FieldDef[] = [
   { key: 'name', section: 'personal', label: 'Name', placeholder: 'e.g. Jane Smith', autocomplete: 'name' },
   { key: 'title', section: 'personal', label: 'Job title', placeholder: 'e.g. CTO', autocomplete: 'organization-title' },
+  // Shown as a line of text under the job title (the "email" field further down is the envelope icon).
+  { key: 'emailAddress', section: 'personal', label: 'Email address', placeholder: 'name@company.com', type: 'email', autocomplete: 'email',
+    check: (v) => (!v.includes('@') ? 'An email address needs an @, like name@company.com.' : isEmail(v) ? null : 'This email address looks incomplete. It should be like name@company.com.') },
   // headshot + logo uploads sit here (see index.html)
   { key: 'website', section: 'contact', label: 'Website', placeholder: 'https://company.com', type: 'url', check: link },
   { key: 'email', section: 'contact', label: 'Email', placeholder: 'name@company.com', type: 'email', autocomplete: 'email',

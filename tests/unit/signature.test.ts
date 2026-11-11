@@ -94,6 +94,34 @@ describe('signature HTML is email-safe', () => {
   });
 });
 
+describe('the email address line under the job title', () => {
+  const withLine = buildSignatureHtml({ ...full, emailLine: 'anastasiia@heights.digital' });
+  const titleDiv = withLine.match(/<div style="([^"]+)">Designer<\/div>/)![1];
+
+  it('comes straight after the job title, and before the icons', () => {
+    const i = (t: string) => withLine.indexOf(t);
+    expect(i('Designer</div>')).toBeLessThan(i('anastasiia@heights.digital'));
+    expect(i('anastasiia@heights.digital')).toBeLessThan(i('<img class="hs-ic-l"'));
+  });
+  it('has exactly the same style as the job title: font, size, line height and colour', () => {
+    const line = withLine.match(/<div style="([^"]+)"><a href="mailto:anastasiia@heights.digital"/)![1];
+    expect(line).toBe(titleDiv);
+    const link = withLine.match(/<a href="mailto:anastasiia@heights.digital" style="([^"]+)"/)![1];
+    expect(link).toBe(`${titleDiv}text-decoration:none;`); // a link, so email apps don’t colour or underline it themselves
+  });
+  it('is left out when empty, and escaped when not', () => {
+    expect(buildSignatureHtml(full)).not.toContain('mailto:anastasiia');
+    expect(buildSignatureHtml({ ...full, emailLine: 'a"b@x.com' })).toContain('mailto:a&quot;b@x.com');
+  });
+  it('adds a line to the plain-text version under the job title', () => {
+    expect(buildSignatureText({ name: 'J', title: 'CTO', emailLine: 'j@x.com' }).split('\n').slice(0, 3)).toEqual(['J', 'CTO', 'j@x.com']);
+  });
+  it('stays email-safe', () => {
+    expect(withLine.length).toBeLessThan(6000);
+    expect(withLine).not.toMatch(/<svg|data:|rgba\(|opacity/i);
+  });
+});
+
 describe('text and file versions', () => {
   it('plain text has the essentials', () => {
     expect(buildSignatureText(full)).toBe(

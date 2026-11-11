@@ -51,6 +51,7 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
 
   const website = normaliseUrl(v('website'));
   if (website) d.website = website;
+  if (isEmail(v('emailAddress'))) d.emailLine = v('emailAddress'); // only a properly formed address ever appears
   if (isEmail(v('email'))) d.email = v('email');
   const tel = telHref(v('phone'));
   if (tel) d.phone = { display: v('phone'), href: tel };

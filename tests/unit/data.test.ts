@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { missingFromEmail, toSignatureData, type FormState } from '../../src/builder/data';
 import { FIELDS, type TextKey } from '../../src/builder/fields';
+import { isEmail } from '../../src/template/format';
 import type { ClientConfig } from '../../src/config/types';
 
 const blank = () => Object.fromEntries(FIELDS.map((f) => [f.key, ''])) as Record<TextKey, string>;
@@ -62,5 +63,40 @@ describe('form → signature data', () => {
   it('ignores links that aren’t LinkedIn in the LinkedIn field', () => {
     const d = toSignatureData(form({ values: { ...blank(), name: 'J', title: 'T', linkedin: 'twitter.com/j' } }), client, 'email', live);
     expect(d.linkedin).toBeUndefined();
+  });
+});
+
+describe('the Email address field (shown under the job title)', () => {
+  const field = FIELDS.find((f) => f.key === 'emailAddress')!;
+  const withEmail = (v: string) => toSignatureData(form({ values: { ...blank(), name: 'J', title: 'T', emailAddress: v } }), client, 'email', live);
+
+  it('sits directly below the job title, in Personal Details, and is optional', () => {
+    const personal = FIELDS.filter((f) => f.section === 'personal').map((f) => f.key);
+    expect(personal).toEqual(['name', 'title', 'emailAddress']);
+    expect(FIELDS.map((f) => f.key).indexOf('emailAddress')).toBe(FIELDS.map((f) => f.key).indexOf('title') + 1);
+    expect(withEmail('').emailLine).toBeUndefined(); // empty is fine
+  });
+  it('accepts a normal email address, and trims spaces around it', () => {
+    expect(field.check!('jane@company.com', blank())).toBeNull();
+    expect(field.check!('jane.smith+news@sub.company.co.uk', blank())).toBeNull();
+    expect(withEmail('  jane@company.com ').emailLine).toBe('jane@company.com');
+  });
+  it('turns away anything without an @, saying so', () => {
+    for (const bad of ['jane', 'jane.company.com', 'company.com', 'Jane Smith']) {
+      expect(field.check!(bad, blank())).toMatch(/needs an @/);
+      expect(withEmail(bad).emailLine).toBeUndefined();
+    }
+  });
+  it('turns away an address that has an @ but isn’t complete', () => {
+    for (const bad of ['jane@', '@company.com', 'jane@company', 'jane@company.', 'jane@@company.com', 'jane @company.com', 'jane@com pany.com', 'jane@company.c']) {
+      expect(field.check!(bad, blank()), bad).toMatch(/looks incomplete/);
+      expect(isEmail(bad), bad).toBe(false);
+      expect(withEmail(bad).emailLine, bad).toBeUndefined();
+    }
+  });
+  it('is separate from the Email field in Contact, which still gives the envelope icon', () => {
+    const d = toSignatureData(form({ values: { ...blank(), name: 'J', title: 'T', email: 'icon@x.com', emailAddress: 'line@x.com' } }), client, 'email', live);
+    expect([d.email, d.emailLine]).toEqual(['icon@x.com', 'line@x.com']);
+    expect(withEmail('line@x.com').email).toBeUndefined();
   });
 });

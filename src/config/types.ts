@@ -7,6 +7,7 @@
 export type FieldKey =
   | 'name'
   | 'title'
+  | 'emailAddress'
   | 'headshot'
   | 'logo'
   | 'website'
