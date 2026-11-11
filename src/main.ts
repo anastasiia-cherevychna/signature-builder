@@ -6,9 +6,10 @@ import { missingFromEmail, toSignatureData, type FormState } from './builder/dat
 import { createUploadField } from './builder/upload-field';
 import { saveFile } from './builder/save-file';
 import { attachColourPicker } from './builder/colour-picker';
-import { headshotDimensionProblem, imageDimensionProblem, imageDisplaySize, logoDimensionProblem } from './image/check';
+import { damaged, gifSizeProblem, headshotDimensionProblem, imageDimensionProblem, imageDisplaySize, logoDimensionProblem } from './image/check';
+import { gifFitsAsIs, gifSizesToTry, resizeGif } from './image/gif';
 import { createCropper, type CropState } from './image/crop';
-import { loadImageFile, renderHeadshot, renderImage, renderLogo, toJpeg, toPng, type LoadedImage } from './image/process';
+import { blobToDataUrl, loadImageFile, renderHeadshot, renderImage, renderLogo, toJpeg, toPng, type LoadedImage } from './image/process';
 import { UploadError, uploadImage } from './upload/cloudinary';
 import { normaliseHex } from './template/format';
 import { buildSignatureDocument, buildSignatureHtml, buildSignatureText } from './template/signature';
@@ -261,11 +262,28 @@ function start(cfg: ClientConfig) {
     let preview: string;
     let name: string;
     if (r.value.kind === 'gif') {
-      // Used exactly as uploaded: drawing it onto a canvas would keep only the first frame.
-      imageField.progress('Checking your GIF…', 40);
-      blob = file;
-      preview = r.value.url;
+      // Never drawn onto one canvas (that keeps only the first frame): every frame is resized, so it keeps moving.
       name = 'image.gif';
+      if (gifFitsAsIs(r.value.w, r.value.h, file.size)) {
+        blob = file; // already small enough: used exactly as uploaded
+      } else {
+        imageField.progress('Resizing your GIF…', 20);
+        const buf = await file.arrayBuffer();
+        let best: Blob | null = null;
+        try {
+          for (const size of gifSizesToTry(r.value.w, r.value.h)) {
+            best = await resizeGif(buf, size, (d, t) => imageField.progress('Resizing your GIF…', 20 + Math.round((d / t) * 20)));
+            if (!gifSizeProblem(best.size)) break; // light enough; otherwise try a smaller size
+          }
+        } catch {
+          busy.image = false;
+          return imageField.error(damaged('gif'));
+        }
+        const heavy = best && gifSizeProblem(best.size);
+        if (!best || heavy) { busy.image = false; return imageField.error(heavy || damaged('gif')); }
+        blob = best;
+      }
+      preview = await blobToDataUrl(blob);
     } else {
       imageField.progress('Resizing your image…', 40);
       const canvas = renderImage(r.value.img, shown);

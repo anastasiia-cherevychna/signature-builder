@@ -21,5 +21,9 @@
     "vite": "^6.4.4",
     "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "gifenc": "^1.0.3",
+    "gifuct-js": "^2.1.2"
   }
 }

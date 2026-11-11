@@ -68,12 +68,12 @@ export function sizeProblem(bytes: number): Problem | null {
     : null;
 }
 
-/** GIFs are uploaded as they are (so they keep moving), and they load every time the email is opened. */
+/** A GIF loads every time the email is opened, so the one we host has to stay under this. (Bigger ones are shrunk first.) */
 export const MAX_GIF_BYTES = 1024 * 1024;
 
 export function gifSizeProblem(bytes: number): Problem | null {
   return bytes > MAX_GIF_BYTES
-    ? { what: `This GIF is ${mb(bytes)}. For a signature it needs to be under 1 MB, or emails load slowly.`, fix: 'Shrink it to 256 × 256 px and cut frames or colours, for example in Photoshop (Save for Web) or ezgif.com.' }
+    ? { what: `Even shrunk to fit, this GIF is ${mb(bytes)}. For a signature it needs to be under 1 MB, or emails load slowly.`, fix: 'Use a shorter GIF, or cut frames or colours first, for example in Photoshop (Save for Web) or ezgif.com.' }
     : null;
 }
 
@@ -84,8 +84,8 @@ export const IMAGE_SIZE = 128; // the largest the image option is shown, on eith
  * exactly 128 × 128; a wider or taller one is smaller on its short side, and the signature wraps tightly
  * around it (no white bars, nothing stretched or cropped).
  */
-export function imageDisplaySize(w: number, h: number): { width: number; height: number } {
-  const scale = IMAGE_SIZE / Math.max(w, h);
+export function imageDisplaySize(w: number, h: number, longest = IMAGE_SIZE): { width: number; height: number } {
+  const scale = longest / Math.max(w, h);
   return { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) };
 }
 
@@ -93,10 +93,13 @@ export function imageDisplaySize(w: number, h: number): { width: number; height:
 export function imageDimensionProblem(w: number, h: number): Problem | null {
   if (Math.max(w, h) < IMAGE_SIZE)
     return { what: `This image is only ${w}×${h} px, so it would look blurry at ${IMAGE_SIZE} px.`, fix: `Use one at least ${IMAGE_SIZE} px on its longest side, ideally 256 px.` };
-  if (w / h > 4 || h / w > 4)
-    return { what: `This image is very ${w > h ? 'wide' : 'tall'} (${w}×${h} px), so it would be tiny at ${IMAGE_SIZE} px.`, fix: 'Use an image that’s closer to square, no more than 4 times wider than it is tall (or the other way round).' };
+  if (w / h > MAX_IMAGE_RATIO || h / w > MAX_IMAGE_RATIO)
+    return { what: `This image is very ${w > h ? 'wide' : 'tall'} (${w}×${h} px), so it would be tiny at ${IMAGE_SIZE} px.`, fix: `Use an image that’s closer to square, no more than ${MAX_IMAGE_RATIO} times wider than it is tall (or the other way round).` };
   return null;
 }
+
+/** Any shape is welcome in the image option, within reason: it's shrunk to fit and the signature wraps around it. */
+export const MAX_IMAGE_RATIO = 10;
 
 export function headshotDimensionProblem(w: number, h: number, minSide = 200): Problem | null {
   if (Math.min(w, h) < minSide)

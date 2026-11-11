@@ -284,22 +284,139 @@ test('image option: a GIF is accepted, kept animated, and uploaded exactly as it
   expect(await clipboardHtml(page)).toContain(`<img src="${HOSTED}" width="128" height="128"`);
 });
 
-test('image option: a GIF that isn’t square is fine, and GIFs that won’t work are explained', async ({ page }) => {
-  const uploads = await fakeCloudinary(page);
+// Playwright can't see the file part of an upload, so read it inside the page as it's sent.
+async function captureUploads(page: Page) {
+  await page.addInitScript(() => {
+    const real = window.fetch.bind(window);
+    (window as any).__sent = [];
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('cloudinary') && init?.body instanceof FormData) {
+        const f = init.body.get('file') as File;
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+        (window as any).__sent.push({ name: f.name, type: f.type, b64: btoa(bin) });
+      }
+      return real(input, init);
+    };
+  });
+}
+const sentFiles = (page: Page) => page.evaluate(() => (window as any).__sent as { name: string; type: string; b64: string }[]);
+async function gifInfo(buf: Buffer) {
+  const mod: any = await import('gifuct-js');
+  const { parseGIF, decompressFrames } = mod.parseGIF ? mod : mod.default;
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  const g = parseGIF(ab);
+  const frames = decompressFrames(g, false);
+  return { width: g.lsd.width, height: g.lsd.height, delays: frames.map((f) => f.delay), frames: frames.length };
+}
+/** A noisy animated GIF (random pixels), which doesn't compress: big on disk even at modest sizes. */
+async function noisyGif(w: number, h: number, frames: number) {
+  const mod: any = await import('gifenc');
+  const { GIFEncoder } = mod.GIFEncoder ? mod : mod.default;
+  const enc = GIFEncoder();
+  // 256 spread-out colours; each pixel picks one at random
+  const palette = Array.from({ length: 256 }, (_, i) => [(i * 37) & 255, (i * 91) & 255, (i * 53) & 255]);
+  let seed = 7;
+  for (let f = 0; f < frames; f++) {
+    const index = new Uint8Array(w * h);
+    for (let i = 0; i < index.length; i++) { seed = (seed * 1664525 + 1013904223) >>> 0; index[i] = seed >>> 24; }
+    enc.writeFrame(index, w, h, { palette, delay: 100 });
+  }
+  enc.finish();
+  return Buffer.from(enc.bytes());
+}
+
+test('image option: a GIF that isn’t square is shrunk proportionately to fit 128 × 128, and stays animated', async ({ page }) => {
+  await fakeCloudinary(page);
+  await captureUploads(page);
   await page.goto('/');
   await chooseImage(page);
-  await page.locator('#imageField input[type=file]').setInputFiles(fx('anim-banner.gif')); // 600 × 100
-  await expect(page.locator('#imageField .error')).toContainText('very wide');
-  await page.locator('#imageField input[type=file]').setInputFiles(fx('image-small.png')); // 100 × 100
-  await expect(page.locator('#imageField .error')).toContainText('blurry');
-  expect(uploads).toHaveLength(0);
-  // a 300 × 150 GIF is accepted and shown at 128 × 64, not squashed
-  await page.locator('#imageField input[type=file]').setInputFiles(fx('anim-wide.gif'));
+  const fs = await import('node:fs');
+
+  // 600 × 100 (6 : 1) was refused before; now it's shrunk to 256 × 43 (shown at 128 × 21) with all its frames and timings
+  const banner = fs.readFileSync(fx('anim-banner.gif'));
+  const before = await gifInfo(banner);
+  expect([before.width, before.height]).toEqual([600, 100]);
+  await page.locator('#imageField input[type=file]').setInputFiles(fx('anim-banner.gif'));
   await expect(page.locator('#imageField .status')).toBeVisible();
-  expect(uploads).toHaveLength(1);
-  const img = page.locator('#previewInner img[width="128"]');
-  await expect(img).toHaveAttribute('height', '64');
+  await expect(page.locator('#imageField .error')).toHaveText('');
+  let sent = await sentFiles(page);
+  expect(sent).toHaveLength(1);
+  const after = await gifInfo(Buffer.from(sent[0].b64, 'base64'));
+  expect([sent[0].name, sent[0].type]).toEqual(['image.gif', 'image/gif']);
+  expect([after.width, after.height]).toEqual([256, 43]);
+  expect(after.frames).toBe(before.frames);
+  expect(after.frames).toBeGreaterThan(1);
+  expect(after.delays).toEqual(before.delays.map((d) => d || 100));
+  let img = page.locator('#previewInner img[width="128"]');
+  await expect(img).toHaveAttribute('height', '21');
   await expect(img).toHaveAttribute('src', /^data:image\/gif/);
+
+  // the signature wraps tightly around the short image: the image box really is 128 × 21, not 128 × 128
+  const box = (await img.boundingBox())!;
+  expect([Math.round(box.width), Math.round(box.height)]).toEqual([128, 21]);
+
+  // a 300 × 150 GIF: shrunk to 256 × 128, shown at 128 × 64
+  await page.locator('#imageField input[type=file]').setInputFiles(fx('anim-wide.gif'));
+  await expect(img).toHaveAttribute('height', '64');
+  await expect.poll(async () => (await sentFiles(page)).length).toBe(2);
+  sent = await sentFiles(page);
+  const wide = await gifInfo(Buffer.from(sent[1].b64, 'base64'));
+  expect([wide.width, wide.height]).toEqual([256, 128]);
+
+  // a tall one: 100 × 600 would be 21 × 128 (made by turning the banner's shape around)
+  const tall = await noisyGif(120, 600, 2);
+  await page.locator('#imageField input[type=file]').setInputFiles({ name: 'tall.gif', mimeType: 'image/gif', buffer: tall });
+  await expect(page.locator('#imageField .file-name')).toHaveText('tall.gif');
+  await expect(page.locator('#previewInner img[height="128"]')).toHaveAttribute('width', '26');
+  await expect.poll(async () => (await sentFiles(page)).length).toBe(3);
+  sent = await sentFiles(page);
+  const t = await gifInfo(Buffer.from(sent[2].b64, 'base64'));
+  expect([t.width, t.height, t.frames]).toEqual([51, 256, 2]);
+
+  // copied into the email at its shown size
+  await page.fill('#f-name', 'Jane');
+  await page.fill('#f-title', 'CTO');
+  await page.check('#noHeadshot', { force: true });
+  await page.click('#copyBtn');
+  await expect(page.locator('#actionMsg')).toContainText('Copied');
+  expect(await clipboardHtml(page)).toContain(`<img src="${HOSTED}" width="26" height="128"`);
+});
+
+test('image option: a big GIF is shrunk to a light file; one that’s still too heavy is explained; extreme shapes are refused', async ({ page }) => {
+  test.setTimeout(90000);
+  const uploads = await fakeCloudinary(page);
+  await captureUploads(page);
+  await page.goto('/');
+  await chooseImage(page);
+  const input = page.locator('#imageField input[type=file]');
+
+  // 800 × 500, over 2 MB: used to be refused as too heavy, now shrunk to 256 × 160 and well under 1 MB
+  const big = await noisyGif(800, 500, 6);
+  expect(big.length).toBeGreaterThan(1024 * 1024);
+  await input.setInputFiles({ name: 'big.gif', mimeType: 'image/gif', buffer: big });
+  await expect(page.locator('#imageField .status')).toBeVisible({ timeout: 30000 });
+  const sent = await sentFiles(page);
+  expect(sent).toHaveLength(1);
+  const bytes = Buffer.from(sent[0].b64, 'base64');
+  expect(bytes.length).toBeLessThan(1024 * 1024);
+  const info = await gifInfo(bytes);
+  expect([info.width, info.height, info.frames]).toEqual([256, 160, 6]);
+  await expect(page.locator('#previewInner img[width="128"]')).toHaveAttribute('height', '80');
+
+  // 120 frames that are already 128 × 128, so there is nothing to shrink and it is still over 1 MB: explained, nothing uploaded
+  const heavy = await noisyGif(128, 128, 120);
+  await input.setInputFiles({ name: 'heavy.gif', mimeType: 'image/gif', buffer: heavy });
+  await expect(page.locator('#imageField .error')).toContainText('Even shrunk to fit', { timeout: 60000 });
+  expect(uploads).toHaveLength(1);
+
+  // an extreme shape is still turned away
+  const sliver = await noisyGif(2000, 150, 1);
+  await input.setInputFiles({ name: 'sliver.gif', mimeType: 'image/gif', buffer: sliver });
+  await expect(page.locator('#imageField .error')).toContainText('very wide');
+  expect(uploads).toHaveLength(1);
+
   // the logo and the headshot still refuse GIFs
   await page.click('[data-slot-btn="logo"]');
   await page.locator('#logoField input[type=file]').setInputFiles(fx('anim-square.gif'));
@@ -307,6 +424,15 @@ test('image option: a GIF that isn’t square is fine, and GIFs that won’t wor
   await page.locator('#headshotField input[type=file]').setInputFiles(fx('anim-square.gif'));
   await expect(page.locator('#headshotField .error')).toContainText('GIF, which doesn’t work well in a signature');
   expect(uploads).toHaveLength(1);
+});
+
+test('image option: a still image smaller than 128 px is still refused as blurry', async ({ page }) => {
+  const uploads = await fakeCloudinary(page);
+  await page.goto('/');
+  await chooseImage(page);
+  await page.locator('#imageField input[type=file]').setInputFiles(fx('image-small.png')); // 100 × 100
+  await expect(page.locator('#imageField .error')).toContainText('blurry');
+  expect(uploads).toHaveLength(0);
 });
 
 test('image option: sits on the right exactly like the logo, on desktop and on phones', async ({ page }) => {

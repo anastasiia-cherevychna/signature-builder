@@ -1,4 +1,4 @@
-import { damaged, gifSizeProblem, IMAGE_SIZE, sizeProblem, sniffBytes, typeProblem, unreadable, type Kind, type Problem } from './check';
+import { damaged, IMAGE_SIZE, sizeProblem, sniffBytes, typeProblem, unreadable, type Kind, type Problem } from './check';
 
 export interface LoadedImage {
   img: HTMLImageElement;
@@ -12,7 +12,7 @@ export interface LoadedImage {
 
 export type Result<T> = { ok: true; value: T } | { ok: false; problem: Problem };
 
-const readAsDataURL = (f: Blob) =>
+export const blobToDataUrl = (f: Blob) =>
   new Promise<string>((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(r.result as string);
@@ -30,12 +30,12 @@ export async function loadImageFile(file: File, opts: { gif?: boolean } = {}): P
   }
   const tp = typeProblem(kind, file.name, opts);
   if (tp) return { ok: false, problem: tp };
-  const sp = (kind === 'gif' && gifSizeProblem(file.size)) || sizeProblem(file.size);
+  const sp = sizeProblem(file.size); // a big GIF is fine: it's shrunk before it's hosted
   if (sp) return { ok: false, problem: sp };
 
   let url: string;
   try {
-    url = await readAsDataURL(file);
+    url = await blobToDataUrl(file);
   } catch {
     return { ok: false, problem: { what: 'Your browser couldn’t read this file.', fix: 'Try again, or save it to your desktop and upload it from there.' } };
   }

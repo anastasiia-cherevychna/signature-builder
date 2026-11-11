@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { gifFitsAsIs, gifSizesToTry } from '../../src/image/gif';
 import { gifSizeProblem, imageDimensionProblem, imageDisplaySize, MAX_GIF_BYTES, sniffBytes, typeProblem } from '../../src/image/check';
 import { explain } from '../../src/upload/cloudinary';
 
@@ -26,9 +27,10 @@ describe('GIFs are accepted only for the 128 × 128 image', () => {
     expect(typeProblem('webp', 'logo.gif', { gif: true })?.what).toMatch(/named “\.gif”, but the file inside isn’t actually a GIF/);
     expect(typeProblem('webp', 'logo.gif')?.what).not.toMatch(/named/); // logo and headshot never take GIFs
   });
-  it('keeps GIFs under 1 MB', () => {
+  it('keeps the hosted GIF under 1 MB (bigger ones are shrunk first)', () => {
     expect(gifSizeProblem(MAX_GIF_BYTES)).toBeNull();
     expect(gifSizeProblem(MAX_GIF_BYTES + 1)?.what).toMatch(/under 1 MB/);
+    expect(gifSizeProblem(MAX_GIF_BYTES + 1)?.what).toMatch(/Even shrunk to fit/);
   });
   it('explains an upload the hosting service refuses for a GIF as a setup issue, not the image', () => {
     const p = explain('Format gif not allowed', 'image.gif');
@@ -77,9 +79,35 @@ describe('128 × 128 image size checks', () => {
     expect(imageDimensionProblem(300, 500)).toBeNull();
     expect(imageDimensionProblem(300, 150)).toBeNull();
   });
-  it('turns away a very wide or tall one, which would be tiny', () => {
-    expect(imageDimensionProblem(1200, 200)?.what).toMatch(/very wide/);
-    expect(imageDimensionProblem(200, 1200)?.what).toMatch(/very tall/);
-    expect(imageDimensionProblem(1200, 300)).toBeNull(); // exactly 4 : 1 is fine
+  it('accepts wide and tall shapes too (they are shrunk to fit), e.g. a 6 : 1 banner', () => {
+    expect(imageDimensionProblem(600, 100)).toBeNull();
+    expect(imageDimensionProblem(100, 600)).toBeNull();
+    expect(imageDimensionProblem(1200, 120)).toBeNull(); // exactly 10 : 1 is fine
+  });
+  it('turns away an extreme one, which would be a sliver', () => {
+    expect(imageDimensionProblem(2000, 150)?.what).toMatch(/very wide/);
+    expect(imageDimensionProblem(150, 2000)?.what).toMatch(/very tall/);
+  });
+});
+
+describe('how a GIF is shrunk to fit', () => {
+  it('shows a wide or tall one at 128 on its long side, keeping its proportions', () => {
+    expect(imageDisplaySize(600, 100)).toEqual({ width: 128, height: 21 });
+    expect(imageDisplaySize(100, 600)).toEqual({ width: 21, height: 128 });
+    expect(imageDisplaySize(300, 150)).toEqual({ width: 128, height: 64 });
+  });
+  it('stores it at up to twice that size, with the same proportions, trying smaller if the file is heavy', () => {
+    expect(imageDisplaySize(600, 100, 256)).toEqual({ width: 256, height: 43 });
+    expect(gifSizesToTry(600, 100)).toEqual([256, 192, 128]);
+  });
+  it('never makes a GIF bigger than it was', () => {
+    expect(gifSizesToTry(200, 100)).toEqual([192, 128]);
+    expect(gifSizesToTry(130, 130)).toEqual([128]);
+  });
+  it('leaves a GIF that is already small and light exactly as it was', () => {
+    expect(gifFitsAsIs(256, 256, 500_000)).toBe(true);
+    expect(gifFitsAsIs(200, 100, MAX_GIF_BYTES)).toBe(true);
+    expect(gifFitsAsIs(257, 100, 1000)).toBe(false); // too big
+    expect(gifFitsAsIs(256, 256, MAX_GIF_BYTES + 1)).toBe(false); // too heavy
   });
 });
