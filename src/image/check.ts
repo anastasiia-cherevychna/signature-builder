@@ -77,19 +77,24 @@ export function gifSizeProblem(bytes: number): Problem | null {
     : null;
 }
 
-export const IMAGE_SIZE = 128; // displayed size of the image option, in px
+export const IMAGE_SIZE = 128; // the largest the image option is shown, on either side, in px
 
 /**
- * Checks an image for the 128 × 128 option. Still images are fitted onto a square for you; a GIF is
- * used exactly as uploaded (re-drawing it would stop it moving), so it has to be square already.
+ * How big the image is shown: scaled to fit inside 128 × 128, keeping its proportions. A square image is
+ * exactly 128 × 128; a wider or taller one is smaller on its short side, and the signature wraps tightly
+ * around it (no white bars, nothing stretched or cropped).
  */
-export function imageDimensionProblem(kind: Kind, w: number, h: number): Problem | null {
-  if (Math.min(w, h) < IMAGE_SIZE)
-    return { what: `This image is only ${w}×${h} px, so it would look blurry at ${IMAGE_SIZE}×${IMAGE_SIZE}.`, fix: `Use one at least ${IMAGE_SIZE}×${IMAGE_SIZE} px, ideally 256×256.` };
-  if (kind === 'gif' && Math.abs(w - h) / Math.max(w, h) > 0.02)
-    return { what: `This GIF isn’t square (${w}×${h} px), and it would be squashed at ${IMAGE_SIZE}×${IMAGE_SIZE}.`, fix: 'Re-export it as a square, for example 256×256 px.' };
+export function imageDisplaySize(w: number, h: number): { width: number; height: number } {
+  const scale = IMAGE_SIZE / Math.max(w, h);
+  return { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) };
+}
+
+/** Checks an image for the image option. Any shape is welcome (it keeps its proportions), within reason. */
+export function imageDimensionProblem(w: number, h: number): Problem | null {
+  if (Math.max(w, h) < IMAGE_SIZE)
+    return { what: `This image is only ${w}×${h} px, so it would look blurry at ${IMAGE_SIZE} px.`, fix: `Use one at least ${IMAGE_SIZE} px on its longest side, ideally 256 px.` };
   if (w / h > 4 || h / w > 4)
-    return { what: `This image is very ${w > h ? 'wide' : 'tall'} (${w}×${h} px), so it would be tiny once fitted into a square.`, fix: 'Use a square, or close to square, image.' };
+    return { what: `This image is very ${w > h ? 'wide' : 'tall'} (${w}×${h} px), so it would be tiny at ${IMAGE_SIZE} px.`, fix: 'Use an image that’s closer to square, no more than 4 times wider than it is tall (or the other way round).' };
   return null;
 }
 

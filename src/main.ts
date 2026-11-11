@@ -6,9 +6,9 @@ import { missingFromEmail, toSignatureData, type FormState } from './builder/dat
 import { createUploadField } from './builder/upload-field';
 import { saveFile } from './builder/save-file';
 import { attachColourPicker } from './builder/colour-picker';
-import { headshotDimensionProblem, imageDimensionProblem, logoDimensionProblem } from './image/check';
+import { headshotDimensionProblem, imageDimensionProblem, imageDisplaySize, logoDimensionProblem } from './image/check';
 import { createCropper, type CropState } from './image/crop';
-import { loadImageFile, renderHeadshot, renderLogo, renderSquareImage, toJpeg, toPng, type LoadedImage } from './image/process';
+import { loadImageFile, renderHeadshot, renderImage, renderLogo, toJpeg, toPng, type LoadedImage } from './image/process';
 import { UploadError, uploadImage } from './upload/cloudinary';
 import { normaliseHex } from './template/format';
 import { buildSignatureDocument, buildSignatureHtml, buildSignatureText } from './template/signature';
@@ -253,9 +253,10 @@ function start(cfg: ClientConfig) {
     imageField.error(null);
     const r = await loadImageFile(file, { gif: true });
     if (!r.ok) return imageField.error(r.problem);
-    const dim = imageDimensionProblem(r.value.kind, r.value.w, r.value.h);
+    const dim = imageDimensionProblem(r.value.w, r.value.h);
     if (dim) return imageField.error(dim);
     busy.image = true;
+    const shown = imageDisplaySize(r.value.w, r.value.h); // fits inside 128 × 128, keeping its proportions
     let blob: Blob;
     let preview: string;
     let name: string;
@@ -266,8 +267,8 @@ function start(cfg: ClientConfig) {
       preview = r.value.url;
       name = 'image.gif';
     } else {
-      imageField.progress('Fitting to 128 × 128…', 40);
-      const canvas = renderSquareImage(r.value.img);
+      imageField.progress('Resizing your image…', 40);
+      const canvas = renderImage(r.value.img, shown);
       preview = canvas.toDataURL('image/png');
       blob = await toPng(canvas);
       name = 'image.png';
@@ -275,7 +276,7 @@ function start(cfg: ClientConfig) {
     const hosted = await host(blob, name, imageField);
     busy.image = false;
     if (hosted === false) { state.image = null; imageField.show('empty'); schedule(); return; }
-    state.image = { preview, hosted: hosted || undefined, width: 128, height: 128 };
+    state.image = { preview, hosted: hosted || undefined, width: shown.width, height: shown.height };
     imageField.done(preview, r.value.name);
     schedule();
   }

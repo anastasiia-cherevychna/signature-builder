@@ -67,12 +67,12 @@ describe('form → signature data', () => {
 
 describe('the 128 × 128 image option (an alternative to the logo)', () => {
   const logo = { preview: 'data:logo', hosted: 'https://res.cloudinary.com/l.png', width: 120, height: 30 };
-  const image = { preview: 'data:image/gif;base64,xx', hosted: 'https://res.cloudinary.com/i.gif', width: 128, height: 128 };
+  const image = { preview: 'data:image/gif;base64,xx', hosted: 'https://res.cloudinary.com/i.gif', width: 128, height: 64 };
 
   it('uses the image, and not the logo, when "image" is chosen', () => {
     const s = form({ slot: 'image', logo, image });
     const e = toSignatureData(s, client, 'email', live);
-    expect(e.image).toEqual({ src: 'https://res.cloudinary.com/i.gif', alt: 'X Ltd' });
+    expect(e.image).toEqual({ src: 'https://res.cloudinary.com/i.gif', width: 128, height: 64, alt: 'X Ltd' }); // the size it's shown at, not forced to 128 × 128
     expect(e.logo).toBeUndefined();
     expect(toSignatureData(s, client, 'preview', live).image?.src).toBe('data:image/gif;base64,xx');
   });

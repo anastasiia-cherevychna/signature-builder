@@ -20,8 +20,11 @@ export interface SignatureData {
   /** Square headshot. `src` must be a hosted https URL when copying (a data: URL is fine for preview). */
   photo?: { src: string; alt?: string };
   logo?: { src: string; width: number; height: number; alt: string };
-  /** The 128 × 128 alternative to the logo. Same place on the right; `src` is a hosted https PNG, JPG or GIF. */
-  image?: { src: string; alt: string };
+  /**
+   * The alternative to the logo: shown at up to 128 × 128, keeping its proportions (`width` and `height`
+   * are the size shown; at least one is 128). Same place on the right; `src` is a hosted https PNG, JPG or GIF.
+   */
+  image?: { src: string; width: number; height: number; alt: string };
   website?: string; // full href
   email?: string;
   phone?: { display: string; href: string };
@@ -121,8 +124,8 @@ export function buildSignatureHtml(d: SignatureData): string {
     : d.image
       ? // Same cell as the logo, so it sits and behaves exactly like it.
         `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
-        `<img src="${esc(d.image.src)}" width="${IMAGE}" height="${IMAGE}" alt="${esc(d.image.alt)}" ` +
-        `style="display:block;width:${IMAGE}px;height:${IMAGE}px;border:0;outline:none;"></td>`
+        `<img src="${esc(d.image.src)}" width="${d.image.width}" height="${d.image.height}" alt="${esc(d.image.alt)}" ` +
+        `style="display:block;width:${d.image.width}px;height:${d.image.height}px;border:0;outline:none;"></td>`
       : d.logoPlaceholder
         ? `<td valign="top" align="right" style="padding:0 0 0 24px;">` +
           `<div data-placeholder="logo" style="width:158px;height:60px;background:#E1E1E1;color:#A3A3A3;${FONT}font-size:22px;` +

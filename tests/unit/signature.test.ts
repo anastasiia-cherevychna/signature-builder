@@ -96,13 +96,21 @@ describe('signature HTML is email-safe', () => {
 
 describe('the 128 × 128 image', () => {
   const { logo: _logo, ...noLogo } = full;
-  const withImage = buildSignatureHtml({ ...noLogo, image: { src: 'https://res.cloudinary.com/x/image/upload/v1/i.gif', alt: 'Heights Digital' } });
+  const withImage = buildSignatureHtml({ ...noLogo, image: { src: 'https://res.cloudinary.com/x/image/upload/v1/i.gif', width: 128, height: 128, alt: 'Heights Digital' } });
   const logoCell = buildSignatureHtml(full).match(/<td valign="top" align="right" style="padding:0 0 0 24px;">/)![0];
 
   it('sits in the same right-hand cell as the logo, at exactly 128 × 128', () => {
     expect(withImage).toContain(`${logoCell}<img src="https://res.cloudinary.com/x/image/upload/v1/i.gif" width="128" height="128"`);
     expect(withImage).toContain('style="display:block;width:128px;height:128px;border:0;outline:none;"');
     expect(withImage.indexOf('align="right"')).toBeGreaterThan(withImage.indexOf('Anastasiia Cherevychna')); // right of the details
+  });
+  it('wraps a shorter image at its own size, not in a 128 × 128 box', () => {
+    const wide = buildSignatureHtml({ ...noLogo, image: { src: 'https://res.cloudinary.com/x/i.png', width: 128, height: 64, alt: 'X' } });
+    expect(wide).toContain('width="128" height="64"');
+    expect(wide).toContain('style="display:block;width:128px;height:64px;border:0;outline:none;"');
+    const tall = buildSignatureHtml({ ...noLogo, image: { src: 'https://res.cloudinary.com/x/i.png', width: 64, height: 128, alt: 'X' } });
+    expect(tall).toContain('width="64" height="128"');
+    expect(wide).not.toContain('height:128px;border:0'); // nothing pads it out to 128
   });
   it('stays email-safe: no SVG, data URLs, extra classes or styles, and under Gmail’s limit', () => {
     expect(withImage).not.toMatch(/<svg|data:|rgba\(|opacity/i);

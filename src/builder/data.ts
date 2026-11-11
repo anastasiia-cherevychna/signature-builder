@@ -51,7 +51,7 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
     }
   } else if (s.slot === 'image') {
     const src = img(s.image);
-    if (src) d.image = { src, alt: client.name };
+    if (src) d.image = { src, width: s.image?.width ?? 128, height: s.image?.height ?? 128, alt: client.name };
     else if (purpose === 'preview') d.imagePlaceholder = true;
   } else if (s.logo) {
     const src = img(s.logo);

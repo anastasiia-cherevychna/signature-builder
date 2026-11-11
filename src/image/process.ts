@@ -106,22 +106,21 @@ export function renderLogo(img: HTMLImageElement): { canvas: HTMLCanvasElement; 
 }
 
 /**
- * Fits a still image onto a white 128 × 128 square, drawn at 2× (256 × 256) for sharp screens. Nothing is
- * cropped: a non-square image is centred with white either side. The white is baked in, like the logo's,
- * because email apps would darken see-through areas in dark mode. (GIFs skip this and are used as they are.)
+ * Draws a still image at the size it will be shown (see imageDisplaySize), at up to 2× for sharp screens
+ * (never bigger than the original). It's exactly the image, so the signature wraps tightly around it: no
+ * white bars, nothing cropped. See-through areas are put on white, as with the logo, because email apps
+ * would darken them in dark mode. (GIFs skip this and are used as they are, so they keep moving.)
  */
-export function renderSquareImage(img: HTMLImageElement): HTMLCanvasElement {
-  const px = IMAGE_SIZE * 2;
+export function renderImage(img: HTMLImageElement, display: { width: number; height: number }): HTMLCanvasElement {
+  const k = Math.min(2, Math.max(img.naturalWidth, img.naturalHeight) / IMAGE_SIZE);
   const c = document.createElement('canvas');
-  c.width = c.height = px;
+  c.width = Math.round(display.width * k);
+  c.height = Math.round(display.height * k);
   const ctx = c.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, px, px);
+  ctx.fillRect(0, 0, c.width, c.height);
   ctx.imageSmoothingQuality = 'high';
-  const scale = Math.min(px / img.naturalWidth, px / img.naturalHeight);
-  const w = Math.round(img.naturalWidth * scale);
-  const h = Math.round(img.naturalHeight * scale);
-  ctx.drawImage(img, Math.round((px - w) / 2), Math.round((px - h) / 2), w, h);
+  ctx.drawImage(img, 0, 0, c.width, c.height);
   return c;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gifSizeProblem, imageDimensionProblem, MAX_GIF_BYTES, sniffBytes, typeProblem } from '../../src/image/check';
+import { gifSizeProblem, imageDimensionProblem, imageDisplaySize, MAX_GIF_BYTES, sniffBytes, typeProblem } from '../../src/image/check';
 import { explain } from '../../src/upload/cloudinary';
 
 const bytes = (s: string) => new Uint8Array([...s].map((c) => c.charCodeAt(0)));
@@ -38,22 +38,48 @@ describe('GIFs are accepted only for the 128 × 128 image', () => {
   });
 });
 
+describe('the image option is shown at up to 128 × 128, keeping its proportions', () => {
+  it('shows a square image at exactly 128 × 128', () => {
+    expect(imageDisplaySize(256, 256)).toEqual({ width: 128, height: 128 });
+    expect(imageDisplaySize(1000, 1000)).toEqual({ width: 128, height: 128 });
+  });
+  it('shows a shorter image at its own height, so the signature wraps tightly around it', () => {
+    expect(imageDisplaySize(400, 200)).toEqual({ width: 128, height: 64 });
+    expect(imageDisplaySize(300, 90)).toEqual({ width: 128, height: 38 });
+    expect(imageDisplaySize(128, 90)).toEqual({ width: 128, height: 90 });
+  });
+  it('shows a taller image at its own width', () => {
+    expect(imageDisplaySize(200, 400)).toEqual({ width: 64, height: 128 });
+    expect(imageDisplaySize(90, 300)).toEqual({ width: 38, height: 128 });
+  });
+  it('never shows it bigger than 128 on either side, or squashes it', () => {
+    for (const [w, h] of [[640, 480], [333, 500], [4000, 1100], [129, 128]]) {
+      const d = imageDisplaySize(w, h);
+      expect(Math.max(d.width, d.height)).toBe(128);
+      expect(Math.abs(d.width / d.height - w / h)).toBeLessThan(0.05);
+    }
+  });
+});
+
 describe('128 × 128 image size checks', () => {
-  it('asks for at least 128 px on both sides', () => {
-    expect(imageDimensionProblem('png', 100, 300)?.what).toMatch(/only 100×300 px/);
-    expect(imageDimensionProblem('png', 128, 128)).toBeNull();
+  it('asks for at least 128 px on the longest side (so it stays sharp)', () => {
+    expect(imageDimensionProblem(100, 100)?.what).toMatch(/only 100×100 px/);
+    expect(imageDimensionProblem(127, 90)?.what).toMatch(/only 127×90 px/);
+    expect(imageDimensionProblem(128, 128)).toBeNull();
   });
-  it('fits a still image of any ordinary shape without complaint', () => {
-    expect(imageDimensionProblem('png', 400, 200)).toBeNull();
-    expect(imageDimensionProblem('jpg', 300, 500)).toBeNull();
+  it('accepts an image shorter than 128 px, as long as its width is enough', () => {
+    expect(imageDimensionProblem(300, 90)).toBeNull();
+    expect(imageDimensionProblem(128, 90)).toBeNull();
+    expect(imageDimensionProblem(90, 300)).toBeNull();
   });
-  it('turns away a very wide or tall still image', () => {
-    expect(imageDimensionProblem('png', 1200, 200)?.what).toMatch(/very wide/);
-    expect(imageDimensionProblem('jpg', 200, 1200)?.what).toMatch(/very tall/);
+  it('accepts any ordinary shape, GIFs included', () => {
+    expect(imageDimensionProblem(400, 200)).toBeNull();
+    expect(imageDimensionProblem(300, 500)).toBeNull();
+    expect(imageDimensionProblem(300, 150)).toBeNull();
   });
-  it('requires a GIF to be square, within 2%, because it can’t be re-drawn without losing the animation', () => {
-    expect(imageDimensionProblem('gif', 256, 256)).toBeNull();
-    expect(imageDimensionProblem('gif', 256, 260)).toBeNull();
-    expect(imageDimensionProblem('gif', 300, 150)?.what).toMatch(/isn’t square/);
+  it('turns away a very wide or tall one, which would be tiny', () => {
+    expect(imageDimensionProblem(1200, 200)?.what).toMatch(/very wide/);
+    expect(imageDimensionProblem(200, 1200)?.what).toMatch(/very tall/);
+    expect(imageDimensionProblem(1200, 300)).toBeNull(); // exactly 4 : 1 is fine
   });
 });
