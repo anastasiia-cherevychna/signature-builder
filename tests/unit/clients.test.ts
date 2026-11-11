@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import heights from '../../clients/heights.json';
 import demo from '../../clients/demo-locked.json';
+import demoOutline from '../../clients/demo-outline.json';
+import demoOutlineLocked from '../../clients/demo-outline-locked.json';
 import { clientIdFromLocation, validateClient } from '../../src/config/load';
 import type { ClientConfig } from '../../src/config/types';
 
 // Every client file is checked here, so a typo in a new client fails before it reaches anyone.
-const clients: Record<string, ClientConfig> = { heights: heights as ClientConfig, 'demo-locked': demo as ClientConfig };
+const clients: Record<string, ClientConfig> = { heights: heights as ClientConfig, 'demo-locked': demo as ClientConfig,
+  'demo-outline': demoOutline as ClientConfig, 'demo-outline-locked': demoOutlineLocked as ClientConfig };
 
 describe('client files', () => {
   for (const [id, cfg] of Object.entries(clients)) {
@@ -14,6 +17,18 @@ describe('client files', () => {
   it('catches common mistakes', () => {
     const bad = { id: 'x', name: '', locked: ['name', 'nope'], logo: { src: 'a.svg', width: 0, height: 0, alt: '' }, defaults: { ctaColour: 'red' } };
     expect(validateClient('y', bad as unknown as ClientConfig)).toHaveLength(7);
+  });
+});
+
+describe('icon style in a client file', () => {
+  const ok = { id: 'x', name: 'X' };
+  it('accepts solid or outline, locked or not', () => {
+    expect(validateClient('x', { ...ok, iconStyle: 'solid' })).toEqual([]);
+    expect(validateClient('x', { ...ok, iconStyle: 'outline', iconStyleLocked: true })).toEqual([]);
+  });
+  it('catches a typo, in plain words', () => {
+    expect(validateClient('x', { ...ok, iconStyle: 'outlined' } as unknown as ClientConfig)[0]).toMatch(/"iconStyle" is "outlined"\. Use "solid" or "outline"/);
+    expect(validateClient('x', { ...ok, iconStyleLocked: 'yes' } as unknown as ClientConfig)[0]).toMatch(/true or false/);
   });
 });
 

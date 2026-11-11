@@ -156,6 +156,105 @@ test('icons turn solid white in the dark preview', async ({ page }) => {
   await expect(page.locator('#previewInner .hs-ic-l').first()).toBeHidden();
 });
 
+/** Fills all four contact fields so all four icons show. */
+async function fillContacts(page: Page) {
+  await page.fill('#f-email', 'jane@company.com');
+  await page.fill('#f-website', 'company.com');
+  await page.fill('#f-phone', '+351 912 345 678');
+  await page.fill('#f-linkedin', 'linkedin.com/in/jane');
+  await expect(page.locator('#previewInner img.hs-ic-l')).toHaveCount(4); // the preview redraws a frame later
+}
+const ICON_KEYS = ['email', 'website', 'phone', 'linkedin'];
+/** Every icon image in the preview (light and dark) actually loads, at the 56 px the files are made at. */
+const iconsLoad = (page: Page) =>
+  page.evaluate(async () => {
+    const imgs = [...document.querySelectorAll<HTMLImageElement>('#previewInner img.hs-ic-l, #previewInner img.hs-ic-d')];
+    await Promise.all(imgs.map((i) => i.decode().catch(() => undefined)));
+    return imgs.map((i) => [i.getAttribute('src')!.replace(/^.*\/icons\//, ''), i.naturalWidth, i.naturalHeight]);
+  });
+
+test('icon style: Solid by default, with the control at the bottom of Contact & Social links', async ({ page }) => {
+  await page.goto('/');
+  const control = page.locator('#iconStyleField');
+  await expect(control.locator('.label')).toHaveText('Icon style');
+  await expect(control.locator('button')).toHaveText(['Solid', 'Outline']);
+  await expect(page.locator('[data-icon-style="solid"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-icon-style="outline"]')).toHaveAttribute('aria-pressed', 'false');
+  // inside the Contact group, below its last field (LinkedIn) and above the next group
+  const y = async (sel: string) => (await page.locator(sel).boundingBox())!.y;
+  await expect(page.locator('[data-section="contact"] #iconStyleField')).toHaveCount(1);
+  expect(await y('#f-linkedin')).toBeLessThan(await y('#iconStyleField'));
+  expect(await y('#iconStyleField')).toBeLessThan(await y('[data-section="extra"]'));
+  // Solid icons are the original files
+  await fillContacts(page);
+  const loaded = await iconsLoad(page);
+  expect(loaded.map((l) => l[0]).sort()).toEqual(ICON_KEYS.flatMap((k) => [`${k}-white.png`, `${k}.png`]).sort());
+  for (const [, w, h] of loaded) expect([w, h]).toEqual([56, 56]);
+});
+
+test('icon style: Outline swaps all four icons, in light and dark, and back again', async ({ page }) => {
+  await page.goto('/');
+  await fillContacts(page);
+  const light = (dir: string) => page.locator(`#previewInner img.hs-ic-l[src*="${dir}"]`);
+  await expect(light('/icons/outline/')).toHaveCount(0);
+
+  await page.click('[data-icon-style="outline"]');
+  await expect(page.locator('[data-icon-style="outline"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-icon-style="solid"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(light('/icons/outline/')).toHaveCount(4);
+  const loaded = await iconsLoad(page);
+  expect(loaded.map((l) => l[0]).sort()).toEqual(ICON_KEYS.flatMap((k) => [`outline/${k}-white.png`, `outline/${k}.png`]).sort());
+  for (const [, w, h] of loaded) expect([w, h]).toEqual([56, 56]);
+  // same row, same size, same links as Solid
+  for (const k of ICON_KEYS) {
+    const box = (await page.locator(`#previewInner img.hs-ic-l[src$="outline/${k}.png"]`).boundingBox())!;
+    expect([Math.round(box.width), Math.round(box.height)]).toEqual([28, 28]);
+  }
+  await expect(page.locator('#previewInner a[href="mailto:jane@company.com"]')).toHaveCount(1);
+  // dark preview: the white outline icons swap in
+  await page.click('[data-theme-btn="dark"]');
+  await expect(page.locator('#previewInner img.hs-ic-d[src$="outline/email-white.png"]')).toBeVisible();
+  await expect(page.locator('#previewInner img.hs-ic-l').first()).toBeHidden();
+  await page.click('[data-theme-btn="light"]');
+
+  // back to Solid: the original files again
+  await page.click('[data-icon-style="solid"]');
+  await expect(light('/icons/outline/')).toHaveCount(0);
+  await expect(page.locator('#previewInner img.hs-ic-l[src$="icons/email.png"]')).toBeVisible();
+});
+
+test('icon style: a client can start on Outline, or fix the style', async ({ page }) => {
+  // starts on Outline, and people can still change it
+  await page.goto('/?client=demo-outline');
+  await expect(page.locator('#iconStyleField')).toBeVisible();
+  await expect(page.locator('[data-icon-style="outline"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#previewInner img.hs-ic-l[src$="outline/website.png"]')).toBeVisible(); // website is filled in by default
+  await page.click('[data-icon-style="solid"]');
+  await expect(page.locator('#previewInner img.hs-ic-l[src$="icons/website.png"]')).toBeVisible();
+
+  // fixed: no control, Outline always
+  await page.goto('/?client=demo-outline-locked');
+  await expect(page.locator('#iconStyleField')).toBeHidden();
+  await expect(page.locator('#previewInner img.hs-ic-l[src$="outline/website.png"]')).toBeVisible();
+  // and the section is still there for its fields
+  await expect(page.locator('[data-section="contact"]')).toBeVisible();
+});
+
+test('icon style: copying warns, as for Solid, when the icons can’t be public (local run)', async ({ page }) => {
+  await fakeCloudinary(page);
+  await page.goto('/');
+  await page.fill('#f-name', 'Jane');
+  await page.fill('#f-title', 'CTO');
+  await page.check('#noHeadshot', { force: true });
+  await page.fill('#f-email', 'jane@company.com');
+  await page.click('[data-icon-style="outline"]');
+  await page.click('#copyBtn');
+  await expect(page.locator('#actionMsg')).toContainText('Copied');
+  const html = await clipboardHtml(page);
+  expect(html).not.toContain('/icons/'); // local addresses never go into an email
+  expect(html).toContain('>jane@company.com</span>'); // the text link takes the icon's place
+});
+
 test('contact icons appear as fields are filled in, and each links to the right place', async ({ page }) => {
   await page.goto('/');
   const icon = (k: string) => page.locator(`#previewInner a:has(img.hs-ic-l[src$="icons/${k}.png"])`);

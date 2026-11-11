@@ -1,5 +1,5 @@
 /** Turns what's on the form into the data the signature template needs. Pure, so it's easy to test. */
-import type { ClientConfig } from '../config/types';
+import type { ClientConfig, IconStyle } from '../config/types';
 import { isEmail, normaliseHex, normaliseUrl, telHref } from '../template/format';
 import type { IconKey, SignatureData } from '../template/signature';
 import type { TextKey } from './fields';
@@ -15,6 +15,8 @@ export interface ImageState {
 
 export interface FormState {
   values: Record<TextKey, string>;
+  /** Look of the contact icons. */
+  iconStyle: IconStyle;
   noHeadshot: boolean;
   headshot: ImageState | null;
   logo: ImageState | null;
@@ -64,8 +66,8 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
 
   const icons: SignatureData['icons'] = {};
   for (const k of ICON_KEYS) {
-    const light = resolve(ICON_PATH(k));
-    if (purpose === 'preview' || isPublic(light)) icons[k] = { light, dark: resolve(ICON_PATH(k, 'dark')) };
+    const light = resolve(ICON_PATH(k, 'light', s.iconStyle));
+    if (purpose === 'preview' || isPublic(light)) icons[k] = { light, dark: resolve(ICON_PATH(k, 'dark', s.iconStyle)) };
   }
   d.icons = icons;
   return d;
@@ -73,7 +75,12 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
 
 export const ICON_KEYS: IconKey[] = ['email', 'website', 'phone', 'linkedin'];
 /** Icons live on this site at a fixed link, so they can be redesigned without anyone re-copying. */
-export const ICON_PATH = (k: IconKey, mode: 'light' | 'dark' = 'light') => `/icons/${k}${mode === 'dark' ? '-white' : ''}.png`;
+/**
+ * Where an icon file lives. Solid keeps its original paths (signatures people already pasted point at them),
+ * every other style has its own folder: /icons/<style>/<name>[-white].png
+ */
+export const ICON_PATH = (k: IconKey, mode: 'light' | 'dark' = 'light', style: IconStyle = 'solid') =>
+  `/icons/${style === 'solid' ? '' : style + '/'}${k}${mode === 'dark' ? '-white' : ''}.png`;
 const isPublic = (src: string) => /^https:\/\//.test(src);
 export const logoLocked = (c: ClientConfig) => (c.locked ?? []).includes('logo');
 
@@ -88,6 +95,6 @@ export function missingFromEmail(s: FormState, client: ClientConfig, resolve: (s
   if (locked && client.logo && !isPublic(resolve(client.logo.src))) out.push('client-logo');
   const d = s.values;
   const usesIcons = [d.email, d.website, d.phone, d.linkedin].some((x) => x.trim());
-  if (usesIcons && !isPublic(resolve(ICON_PATH('email')))) out.push('icons');
+  if (usesIcons && !isPublic(resolve(ICON_PATH('email', 'light', s.iconStyle)))) out.push('icons');
   return out;
 }

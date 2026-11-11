@@ -1,4 +1,4 @@
-import type { ClientConfig, FieldKey } from './types';
+import { ICON_STYLES, type ClientConfig, type FieldKey } from './types';
 
 // Every JSON file in /clients is bundled in at build time.
 const files = import.meta.glob<ClientConfig>('../../clients/*.json', { eager: true, import: 'default' });
@@ -34,6 +34,8 @@ export function validateClient(id: string, cfg: ClientConfig): string[] {
     if (/\.svg($|\?)/i.test(cfg.logo.src)) p.push('The logo is an SVG. Gmail and Outlook don’t show SVGs; use a PNG or JPG.');
     if (!(cfg.logo.width > 0 && cfg.logo.height > 0)) p.push('The logo needs a width and height.');
   }
+  if (cfg.iconStyle !== undefined && !ICON_STYLES.includes(cfg.iconStyle)) p.push(`"iconStyle" is "${cfg.iconStyle}". Use "solid" or "outline".`);
+  if (cfg.iconStyleLocked !== undefined && typeof cfg.iconStyleLocked !== 'boolean') p.push('"iconStyleLocked" must be true or false.');
   const colour = cfg.defaults?.ctaColour;
   if (colour && !/^#[0-9a-f]{6}$/i.test(colour)) p.push(`CTA colour "${colour}" should look like #1A2B3C.`);
   if (cfg.upload && (!cfg.upload.cloudName || !cfg.upload.uploadPreset)) p.push('"upload" needs both cloudName and uploadPreset.');

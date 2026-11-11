@@ -1,0 +1,15 @@
+{
+  "id": "demo-outline-locked",
+  "name": "Acme (example with Outline icons fixed)",
+  "defaults": {
+    "website": "https://acme.example"
+  },
+  "locked": [],
+  "upload": {
+    "provider": "cloudinary",
+    "cloudName": "fvkcrpgg",
+    "uploadPreset": "Signature Tool"
+  },
+  "iconStyle": "outline",
+  "iconStyleLocked": true
+}

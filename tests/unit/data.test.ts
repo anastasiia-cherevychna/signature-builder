@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { missingFromEmail, toSignatureData, type FormState } from '../../src/builder/data';
+import { ICON_PATH, missingFromEmail, toSignatureData, type FormState } from '../../src/builder/data';
 import { FIELDS, type TextKey } from '../../src/builder/fields';
 import type { ClientConfig } from '../../src/config/types';
 
@@ -9,7 +9,7 @@ const live = (src: string) => new URL(src, 'https://signatures.heights.digital/'
 const local = (src: string) => new URL(src, 'http://localhost:5173/').href;
 
 function form(over: Partial<FormState> = {}): FormState {
-  return { values: { ...blank(), name: 'Jane', title: 'CTO' }, noHeadshot: false, headshot: null, logo: null, ...over };
+  return { iconStyle: 'solid', values: { ...blank(), name: 'Jane', title: 'CTO' }, noHeadshot: false, headshot: null, logo: null, ...over };
 }
 
 describe('form → signature data', () => {
@@ -62,5 +62,34 @@ describe('form → signature data', () => {
   it('ignores links that aren’t LinkedIn in the LinkedIn field', () => {
     const d = toSignatureData(form({ values: { ...blank(), name: 'J', title: 'T', linkedin: 'twitter.com/j' } }), client, 'email', live);
     expect(d.linkedin).toBeUndefined();
+  });
+});
+
+describe('icon styles', () => {
+  const values = { ...blank(), name: 'J', title: 'T', email: 'j@x.com', website: 'https://x.com', phone: '+351 912 345 678', linkedin: 'linkedin.com/in/j' };
+
+  it('Solid keeps the original file paths, so signatures already sent keep working', () => {
+    expect(ICON_PATH('email')).toBe('/icons/email.png');
+    expect(ICON_PATH('email', 'dark')).toBe('/icons/email-white.png');
+    expect(ICON_PATH('phone', 'light', 'solid')).toBe('/icons/phone.png');
+  });
+  it('Outline has its own folder, in charcoal and white', () => {
+    expect(ICON_PATH('email', 'light', 'outline')).toBe('/icons/outline/email.png');
+    expect(ICON_PATH('linkedin', 'dark', 'outline')).toBe('/icons/outline/linkedin-white.png');
+  });
+  it('the form’s style decides which icons go into the signature', () => {
+    for (const [style, dir] of [['solid', '/icons/'], ['outline', '/icons/outline/']] as const) {
+      const d = toSignatureData(form({ values, iconStyle: style }), client, 'email', live);
+      for (const k of ['email', 'website', 'phone', 'linkedin'] as const) {
+        expect(d.icons?.[k]).toEqual({
+          light: `https://signatures.heights.digital${dir}${k}.png`,
+          dark: `https://signatures.heights.digital${dir}${k}-white.png`,
+        });
+      }
+    }
+  });
+  it('is the same on a local machine: Outline icons are left out and reported, like Solid ones', () => {
+    expect(toSignatureData(form({ values, iconStyle: 'outline' }), client, 'email', local).icons).toEqual({});
+    expect(missingFromEmail(form({ values, iconStyle: 'outline' }), client, local)).toContain('icons');
   });
 });

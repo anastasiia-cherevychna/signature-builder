@@ -14,8 +14,9 @@ A web tool that lets each client's team make a consistent email signature: fill 
 2. Change `id` (must match the file name) and `name`.
 3. Choose what to pre-fill in `defaults`, what to fix in `locked`, and anything extra in `required`.
 4. By default people upload their own logo (the preview shows a LOGO placeholder until they do). To fix one logo for the whole company instead: put a PNG at `public/clients/<client-id>/logo.png`, **2× the display size**, on a white box with an 8 px margin; set `logo.width` / `logo.height` to the display size; and add `"logo"` to `locked`.
-5. Run `npm test`. It checks every client file and explains any mistake.
-6. Commit. The client's link is `…/<client-id>`.
+5. Contact icons come in two styles, `"solid"` (the default) and `"outline"`. Set `"iconStyle": "outline"` to start a client on Outline; add `"iconStyleLocked": true` to hide the Icon style control so that style is always used.
+6. Run `npm test`. It checks every client file and explains any mistake.
+7. Commit. The client's link is `…/<client-id>`.
 
 Field names you can use in `defaults`, `locked` and `required`:
 `name, title, headshot, logo, website, email, phone, linkedin, ctaText, ctaLink, ctaColour, quoteText, quoteAuthor`.

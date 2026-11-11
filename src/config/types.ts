@@ -19,6 +19,10 @@ export type FieldKey =
   | 'quoteText'
   | 'quoteAuthor';
 
+/** The look of the contact icons: filled glyphs, or thin outlines. */
+export type IconStyle = 'solid' | 'outline';
+export const ICON_STYLES: IconStyle[] = ['solid', 'outline'];
+
 export interface LogoConfig {
   /** Public https URL (or a path on this site, e.g. "/clients/acme/logo.png"). PNG or JPG, never SVG. */
   src: string;
@@ -50,6 +54,10 @@ export interface ClientConfig {
   locked?: FieldKey[];
   /** Fields that must be filled before copying. Name and job title are always required. */
   required?: FieldKey[];
+  /** Icon style the form starts on. Default: "solid". */
+  iconStyle?: IconStyle;
+  /** When true, the Icon style control is hidden and `iconStyle` always applies. */
+  iconStyleLocked?: boolean;
   /** Where photos are stored. Without it, photos can't be hosted and are left out of the copied signature. */
   upload?: UploadConfig;
 }

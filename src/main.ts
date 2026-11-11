@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { allClients, clientIdFromLocation, loadClient, validateClient } from './config/load';
-import type { ClientConfig, FieldKey } from './config/types';
+import type { ClientConfig, FieldKey, IconStyle } from './config/types';
 import { ALWAYS_REQUIRED, FIELDS, type TextKey } from './builder/fields';
 import { missingFromEmail, toSignatureData, type FormState } from './builder/data';
 import { createUploadField } from './builder/upload-field';
@@ -54,6 +54,7 @@ function start(cfg: ClientConfig) {
   else if (!upload) showBanner('Photo hosting isn’t set up for this link yet, so photos and logos are left out when you copy.', true);
 
   const state: FormState = {
+    iconStyle: cfg.iconStyle ?? 'solid',
     values: Object.fromEntries(FIELDS.map((f) => [f.key, cfg.defaults?.[f.key] ?? ''])) as Record<TextKey, string>,
     noHeadshot: false,
     headshot: null,
@@ -125,6 +126,13 @@ function start(cfg: ClientConfig) {
     input.addEventListener('input', () => { state.values[f.key] = input.value; if (touched.has(f.key)) validateField(f.key); schedule(); });
     input.addEventListener('blur', () => { touched.add(f.key); validateField(f.key); });
   }
+  // Icon style: Solid or Outline. A client can set the starting style, or fix it (the control is then hidden).
+  const styleBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-icon-style]')];
+  const showStyle = () => styleBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.iconStyle === state.iconStyle)));
+  showStyle();
+  styleBtns.forEach((b) => b.addEventListener('click', () => { state.iconStyle = b.dataset.iconStyle as IconStyle; showStyle(); schedule(); }));
+  if (cfg.iconStyleLocked) $('iconStyleField').hidden = true;
+
   // Hide a section if everything in it is locked.
   document.querySelectorAll<HTMLElement>('[data-section]').forEach((sec) => {
     const visible = [...sec.querySelectorAll<HTMLElement>('.field')].some((el) => !el.hidden);

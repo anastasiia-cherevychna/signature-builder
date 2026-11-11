@@ -145,6 +145,7 @@ button, input { font: inherit; color: inherit; }
 .seg button { border: 0; padding: 12px 20px; font-size: 16px; line-height: 1; letter-spacing: .16px; cursor: pointer;
   background: var(--lightest-grey); color: var(--light-charcoal); }
 .seg button[aria-pressed="true"] { background: var(--charcoal); color: var(--white); }
+.seg-style { margin-top: 6px; align-self: flex-start; }
 
 .preview { border: 1px solid var(--lightest-grey); padding: 24px; overflow-x: auto; background: #fff; }
 /* Approximates how Gmail/Outlook invert colours in dark mode. Images are flipped back, like the real apps do. */
