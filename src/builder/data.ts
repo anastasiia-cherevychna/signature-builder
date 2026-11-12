@@ -19,6 +19,8 @@ export type RightSlot = 'logo' | 'image';
 export interface FormState {
   values: Record<TextKey, string>;
   noHeadshot: boolean;
+  /** On: the email is an envelope icon in the contact row. Off: it's a line of text under the job title. */
+  emailAsIcon: boolean;
   headshot: ImageState | null;
   logo: ImageState | null;
   /** Which of `logo` / `image` is used. Whichever isn't chosen keeps its upload, so switching back restores it. */
@@ -62,7 +64,10 @@ export function toSignatureData(s: FormState, client: ClientConfig, purpose: Pur
 
   const website = normaliseUrl(v('website'));
   if (website) d.website = website;
-  if (isEmail(v('email'))) d.email = v('email');
+  if (isEmail(v('email'))) { // only a properly formed address ever appears
+    if (s.emailAsIcon) d.email = v('email');
+    else d.emailLine = v('email');
+  }
   const tel = telHref(v('phone'));
   if (tel) d.phone = { display: v('phone'), href: tel };
   const li = normaliseUrl(v('linkedin'));
@@ -99,7 +104,7 @@ export function missingFromEmail(s: FormState, client: ClientConfig, resolve: (s
   if (!locked && s.slot === 'image' && s.image && !s.image.hosted) out.push('image');
   if (locked && client.logo && !isPublic(resolve(client.logo.src))) out.push('client-logo');
   const d = s.values;
-  const usesIcons = [d.email, d.website, d.phone, d.linkedin].some((x) => x.trim());
+  const usesIcons = [s.emailAsIcon ? d.email : '', d.website, d.phone, d.linkedin].some((x) => x.trim()); // written-out email needs no icon
   if (usesIcons && !isPublic(resolve(ICON_PATH('email')))) out.push('icons');
   return out;
 }

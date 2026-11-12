@@ -466,6 +466,96 @@ test('image option: sits on the right exactly like the logo, on desktop and on p
   }
 });
 
+const titleLine = (page: Page) => page.locator('#previewInner div', { hasText: /^Job title$/ }).last();
+const style = (loc: ReturnType<Page['locator']>) =>
+  loc.evaluate((el) => { const c = getComputedStyle(el); return { family: c.fontFamily, size: c.fontSize, line: c.lineHeight, colour: c.color, weight: c.fontWeight, decoration: c.textDecorationLine }; });
+
+test('one Email field in Contact & Social links, with an "Email address as icon" switch just below it', async ({ page }) => {
+  await page.goto('/');
+  // only one email field, in the Contact group, with the switch directly underneath (on by default)
+  await expect(page.locator('input[type="email"]')).toHaveCount(1);
+  await expect(page.locator('[data-fields="contact"] #f-email')).toHaveCount(1);
+  const toggle = page.locator('[data-field="email"] label.toggle');
+  await expect(toggle).toHaveText('Email address as icon');
+  await expect(page.locator('#emailAsIcon')).toBeChecked();
+  const y = async (sel: string) => (await page.locator(sel).boundingBox())!.y;
+  expect(await y('#f-email')).toBeLessThan(await y('#emailAsIcon'));
+  expect(await y('#emailAsIcon')).toBeLessThan(await y('#f-phone'));
+  await expect(page.locator('[data-field="email"] label[for="f-email"]')).toHaveText('Email (optional)');
+
+  // switch ON: an icon in the contact row, nothing written under the job title
+  await page.fill('#f-email', ' jane.smith@company.com ');
+  await expect(page.locator('#previewInner .hs-ic-l[src$="icons/email.png"]')).toBeVisible();
+  await expect(page.locator('#previewInner a[href="mailto:jane.smith@company.com"]')).toHaveCount(1);
+  await expect(page.locator('#previewInner a[href="mailto:jane.smith@company.com"] .hs-ic-l')).toHaveCount(1);
+
+  // switch OFF: no icon; written under the job title in exactly the job title's style
+  await page.locator('#emailAsIcon').uncheck({ force: true });
+  await expect(page.locator('#previewInner .hs-ic-l[src$="icons/email.png"]')).toHaveCount(0);
+  const link = page.locator('#previewInner a[href="mailto:jane.smith@company.com"]');
+  await expect(link).toHaveText('jane.smith@company.com');
+  const t = await style(titleLine(page));
+  const e = await style(link);
+  expect(e).toEqual({ ...t, decoration: 'none' });
+  expect(t.size).toBe('18px');
+  const tb = (await titleLine(page).boundingBox())!;
+  const eb = (await link.locator('..').boundingBox())!;
+  expect(Math.abs(eb.y - (tb.y + tb.height))).toBeLessThanOrEqual(1);
+  expect(eb.height).toBe(tb.height);
+
+  // back ON: icon again, text line gone
+  await page.locator('#emailAsIcon').check({ force: true });
+  await expect(page.locator('#previewInner .hs-ic-l[src$="icons/email.png"]')).toBeVisible();
+  await expect(page.locator('#previewInner a[href="mailto:jane.smith@company.com"]')).toHaveCount(1);
+
+  // empty email: nothing at all, in either mode
+  await page.fill('#f-email', '');
+  await expect(page.locator('#previewInner a[href^="mailto:"]')).toHaveCount(0);
+  await page.locator('#emailAsIcon').uncheck({ force: true });
+  await expect(page.locator('#previewInner a[href^="mailto:"]')).toHaveCount(0);
+});
+
+test('email field: refuses anything that isn’t a proper address, and says why', async ({ page }) => {
+  const uploads = await fakeCloudinary(page);
+  await page.goto('/');
+  await page.fill('#f-name', 'Jane');
+  await page.fill('#f-title', 'CTO');
+  await page.check('#noHeadshot', { force: true });
+  await page.locator('#emailAsIcon').uncheck({ force: true }); // written under the job title
+  const err = page.locator('[data-field="email"] .field-error');
+
+  // empty is fine: copying works
+  await page.click('#copyBtn');
+  await expect(page.locator('#actionMsg')).toContainText('Copied');
+
+  // no @
+  await page.fill('#f-email', 'jane.smith');
+  await page.locator('#f-email').blur();
+  await expect(err).toContainText('needs an @');
+  await expect(page.locator('[data-field="email"]')).toHaveClass(/invalid/);
+  await expect(page.locator('#previewInner a[href^="mailto:"]')).toHaveCount(0); // not shown in the signature
+  await page.click('#copyBtn');
+  await expect(page.locator('#actionMsg')).toContainText('Check this field first: email');
+  await expect(page.locator('#f-email')).toBeFocused();
+
+  // has an @, but incomplete
+  for (const bad of ['jane@', '@company.com', 'jane@company', 'jane@@company.com', 'jane smith@company.com']) {
+    await page.fill('#f-email', bad);
+    await expect(err, bad).toContainText('looks incomplete');
+    await expect(page.locator('#previewInner a[href^="mailto:"]'), bad).toHaveCount(0);
+  }
+
+  // fixed: error clears and it goes into the copied signature as a text line under the job title
+  await page.fill('#f-email', 'jane@company.com');
+  await expect(err).toHaveText('');
+  await page.click('#copyBtn');
+  await expect(page.locator('#actionMsg')).toContainText('Copied');
+  const html = await clipboardHtml(page);
+  expect(html).toMatch(/>CTO<\/div><div style="[^"]*"><a href="mailto:jane@company\.com"[^>]*>jane@company\.com<\/a><\/div>/);
+  expect(html).not.toContain('icons/email');
+  expect(uploads).toHaveLength(0);
+});
+
 test('icons turn solid white in the dark preview', async ({ page }) => {
   await page.goto('/');
   await page.fill('#f-email', 'jane@company.com');
